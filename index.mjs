@@ -41,7 +41,7 @@ rl.on('line', line => {
             console.log('Please, provide an expression!');
         }
         const run = REPL.run(line, {debug: FLAGS.debug, transpile: FLAGS.transpile});
-        console.log('\x1b[32;1m=>\x1b[0m', run);
+        console.log('\x1b[32;1m:>\x1b[37m', run, '\x1b[0m');
     }
     rl.prompt()
 }).on('close', () => {

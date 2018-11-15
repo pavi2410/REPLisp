@@ -2,9 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a1a52228-f6a4-44b0-9698-bc52989c4c55" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/REPLisp.bat" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/REPLisp.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/index.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/REPL.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/REPL.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/REPLisp.bat" beforeDir="false" afterPath="$PROJECT_DIR$/REPLisp.bat" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -29,39 +30,41 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="bat" value="1" />
+          <entry key="bat" value="2" />
           <entry key="js" value="14" />
           <entry key="md" value="1" />
-          <entry key="mjs" value="21" />
+          <entry key="mjs" value="23" />
           <entry key="regexp" value="1" />
+          <entry key="sh" value="1" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="ECMAScript 6" value="21" />
+          <entry key="ECMAScript 6" value="23" />
           <entry key="JavaScript" value="13" />
           <entry key="Markdown" value="1" />
-          <entry key="PLAIN_TEXT" value="1" />
+          <entry key="PLAIN_TEXT" value="3" />
           <entry key="RegExp" value="1" />
           <entry key="UML" value="1" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="bat" value="52" />
+          <entry key="bat" value="66" />
           <entry key="js" value="380" />
           <entry key="md" value="3" />
-          <entry key="mjs" value="2804" />
+          <entry key="mjs" value="2819" />
           <entry key="regexp" value="1" />
+          <entry key="sh" value="75" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="ECMAScript 6" value="2797" />
+          <entry key="ECMAScript 6" value="2812" />
           <entry key="HTML" value="7" />
           <entry key="JavaScript" value="380" />
           <entry key="Markdown" value="3" />
-          <entry key="PLAIN_TEXT" value="52" />
+          <entry key="PLAIN_TEXT" value="141" />
           <entry key="RegExp" value="1" />
         </counts>
       </usages-collector>
@@ -72,8 +75,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/index.mjs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="170">
-              <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
+            <state relative-caret-position="324">
+              <caret line="43" column="57" selection-start-line="43" selection-start-column="57" selection-end-line="43" selection-end-column="57" />
               <folding>
                 <element signature="e#0#32#0" expanded="true" />
               </folding>
@@ -81,11 +84,32 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/REPLisp.bat">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="17">
-              <caret line="1" column="40" lean-forward="true" selection-start-line="1" selection-start-column="40" selection-end-line="1" selection-end-column="40" />
+            <state relative-caret-position="34">
+              <caret line="2" column="46" lean-forward="true" selection-start-line="2" selection-start-column="46" selection-end-line="2" selection-end-column="46" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/REPL.mjs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="68">
+              <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
+              <folding>
+                <element signature="e#0#33#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/REPLisp.sh">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="34">
+              <caret line="2" column="15" selection-start-line="2" selection-start-column="15" selection-end-line="2" selection-end-column="15" />
             </state>
           </provider>
         </entry>
@@ -125,10 +149,11 @@
         <option value="$PROJECT_DIR$/Core/Transpiler.js" />
         <option value="$PROJECT_DIR$/constants.mjs" />
         <option value="$PROJECT_DIR$/Core/Transpiler.mjs" />
-        <option value="$PROJECT_DIR$/REPL.mjs" />
         <option value="$PROJECT_DIR$/test.mjs" />
-        <option value="$PROJECT_DIR$/REPLisp.bat" />
         <option value="$PROJECT_DIR$/index.mjs" />
+        <option value="$PROJECT_DIR$/REPLisp.bat" />
+        <option value="$PROJECT_DIR$/REPL.mjs" />
+        <option value="$PROJECT_DIR$/REPLisp.sh" />
       </list>
     </option>
   </component>
@@ -234,13 +259,13 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="30544000" />
+    <option name="totallyTimeSpent" value="33220000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1382" height="744" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.24330357" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24330357" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -252,7 +277,7 @@
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Version Control" order="8" show_stripe_button="false" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="9" visible="true" weight="0.3295082" />
+      <window_info anchor="bottom" id="Terminal" order="9" weight="0.3295082" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -368,17 +393,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/REPL.mjs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" column="7" selection-start-line="3" selection-start-column="7" selection-end-line="3" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/index.mjs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
+        <state relative-caret-position="324">
+          <caret line="43" column="57" selection-start-line="43" selection-start-column="57" selection-end-line="43" selection-end-column="57" />
           <folding>
             <element signature="e#0#32#0" expanded="true" />
           </folding>
@@ -387,8 +405,25 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/REPLisp.bat">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="1" column="40" lean-forward="true" selection-start-line="1" selection-start-column="40" selection-end-line="1" selection-end-column="40" />
+        <state relative-caret-position="34">
+          <caret line="2" column="46" lean-forward="true" selection-start-line="2" selection-start-column="46" selection-end-line="2" selection-end-column="46" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/REPL.mjs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="68">
+          <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
+          <folding>
+            <element signature="e#0#33#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/REPLisp.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="34">
+          <caret line="2" column="15" selection-start-line="2" selection-start-column="15" selection-end-line="2" selection-end-column="15" />
         </state>
       </provider>
     </entry>

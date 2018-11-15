@@ -1,2 +1,3 @@
 @echo off
-node --experimental-modules index.mjs %*
+cls
+node --experimental-modules index.mjs %* 2>nul
