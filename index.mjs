@@ -5,7 +5,7 @@ import test from "./test";
 
 let FLAGS = {
     debug: false,
-    transpile: false
+    transpile: false,
     test: false
 };
 
