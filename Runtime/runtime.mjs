@@ -1,5 +1,5 @@
 export class ReMath {
     static factorial(n) {
-        return n <= 1 ? 1 : this.factorial(n-1)
+        return n < 2 ? 1 : n * this.factorial(n - 1);
     }
 }
