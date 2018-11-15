@@ -1,42 +1,52 @@
 import readline from 'readline';
 import REPL from './REPL';
 import {HEADER, USAGE} from "./constants";
+import test from "./test";
 
-import test from './test'
+let FLAGS = {
+    debug: false,
+    transpile: false
+    test: false
+};
+
+console.log(HEADER);
+
+const args = process.argv.slice(2);
+
+for (const arg of args) {
+    if (arg === '--test') {
+        FLAGS.test = true;
+    } else if (arg === '--debug') {
+        FLAGS.debug = true;
+    } else if (arg === '--transpile') {
+        FLAGS.transpile = true
+    }
+}
+
+if (FLAGS.test) {
+    test({debug: FLAGS.debug, transpile: FLAGS.transpile});
+    process.exit(0)
+}
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-console.log(HEADER);
-rl.prompt();
-
 rl.on('line', line => {
-    const [cmd, ...args] = line.split(' ');
-    switch (cmd) {
-        case 'run':
-            if (!args.length) {
-                console.log('Please, provide an expression!');
-                break
-            }
-            console.log('\x1b[32;1m=>\x1b[0m', REPL.run(args.join(' ')));
-            break;
-        case 'test':
-            test();
-            break;
-        case 'help':
-            console.log(USAGE);
-            break;
-        case 'bye':
-            rl.close();
-            break;
-        default:
-            console.log(`Say what? I might have heard '${line}'`);
-            break
+    if (line === 'help') {
+        console.log(USAGE);
+    } else {
+        if (!line.length) {
+            console.log('Please, provide an expression!');
+        }
+        const run = REPL.run(line, {debug: FLAGS.debug, transpile: FLAGS.transpile});
+        console.log('\x1b[32;1m=>\x1b[0m', run);
     }
     rl.prompt()
 }).on('close', () => {
-    console.log('Have a great day!');
+    console.log('\x1b[1;32mHave a great day!\x1b[0m');
     process.exit(0)
 });
+
+rl.prompt();

@@ -7,7 +7,7 @@ export default class Lexer {
         }
 
         for (let i = 0; i < code.length; i++) {
-            let char = code[i];
+            let char = code.charAt(i);
 
             if (/\s/.test(char)) continue;
 
@@ -19,14 +19,14 @@ export default class Lexer {
             // String
             else if (char === '"') {
                 let value = '';
-                char = code[++i];
+                char = code.charAt(++i);
 
                 while (char !== '"') {
                     value += char;
-                    char = code[++i];
+                    char = code.charAt(++i);
                 }
 
-                char = code[++i];
+                char = code.charAt(++i);
                 i--;
 
                 addToken('str', value);
@@ -35,11 +35,11 @@ export default class Lexer {
             // Number
             else if (/\d/.test(char)) {
                 let value = char;
-                char = code[++i];
+                char = code.charAt(++i);
 
                 while (/\d/.test(char) || char === '.') {
                     value += char;
-                    char = code[++i];
+                    char = code.charAt(++i);
                 }
                 i--;
 

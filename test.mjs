@@ -14,12 +14,12 @@ const cases = {
     '(+ "hello " "world")': 'hello world'
 };
 
-export default function test() {
+export default function test({debug, transpile}) {
     const length = Object.keys(cases).length;
     let index = 1;
 
     for (const [code, answer] of Object.entries(cases)) {
-        const result = REPL.run(code);
+        const result = REPL.run(code, {debug, transpile});
         if (result === answer) {
             console.log(`\x1b[32mCASE ${index++} of ${length} PASSED : ${code} = ${result}\x1b[0m`)
         } else {

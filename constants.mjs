@@ -1,29 +1,30 @@
-export const VERSION = '0.8';
+export const VERSION = '0.9';
 
 export const HEADER = `\x1b[33;1mREPLisp v${VERSION}\x1b[0m by \x1b[35;1m@pavi2410\x1b[0m
-(Type 'help' for usage and syntax)
+- Type \x1b[32m'help'\x1b[0m for usage and syntax
+- Hit \x1b[37m Ctrl + C \x1b[0m to exit
 `;
 
 export const USAGE = `
 Usage:
-  > [command]
+    > [COMMAND]
 
-command          | description
+ command         | description
 -----------------|---------------------
-run <expression> | Evals the expression
-test             | Run tests
-help             | Show this help text
-bye              | Exit
+ <EXPRESSION>    | Evals the expression
+ help            | Show this help text
 
 Syntax:
-  (<operator> [<argument> ...])
+    (<OPERATOR> [<EXPRESSION> ...])
 
-  where <operator> is one of:
-    + (add)
-    - (subtract)
-    * (multiply)
-    / (divide)
-    % (remainder)
-    ^ (power)
-  and <argument> can be either a number or an expression itself
-`;
+    where <OPERATOR> is one of:
+        + (add)
+        - (subtract)
+        * (multiply)
+        / (divide)
+        % (remainder)
+        ^ (power)
+        ! (factorial)
+    and <EXPRESSION> can be either a <NUM>, <STRING>, or <EXPRESSION> itself
+`.replace(/([<[]\w+[>\]])/gm, `\x1b[36m$1\x1b[0m`)
+    .replace(/(.) \((\w+)\)/gm, `\x1b[32m$1\x1b[0m (\x1b[35m$2\x1b[0m)`);
