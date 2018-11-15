@@ -1,0 +1,26 @@
+{
+  "name": "replisp",
+  "version": "0.9.0",
+  "description": "A mini Lisp-like interpreted language.",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "node --experimental-modules index.mjs --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pavi2410/REPLisp.git"
+  },
+  "keywords": [
+    "repl",
+    "lisp",
+    "lisp-interpreter",
+    "programming-language",
+    "interpreter"
+  ],
+  "author": "Pavitra",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pavi2410/REPLisp/issues"
+  },
+  "homepage": "https://github.com/pavi2410/REPLisp#readme"
+}
