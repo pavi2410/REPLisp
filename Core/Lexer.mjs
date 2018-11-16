@@ -37,7 +37,7 @@ export default class Lexer {
             }
 
             // Number
-            if (/[\d.]+/.test(token)) {
+            if (/[-\d.]+/.test(token)) {
                 addToken('num', token);
                 continue
             }

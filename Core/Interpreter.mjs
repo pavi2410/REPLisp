@@ -21,7 +21,17 @@ export default class Interpreter {
                 case '^':
                     return x ** y;
                 case '!':
-                    return ReMath.factorial(x)
+                    return ReMath.factorial(x);
+                case '>':
+                    return x > y;
+                case '>=':
+                    return x >= y;
+                case '<':
+                    return x < y;
+                case '<=':
+                    return x <= y;
+                case '==':
+                    return x == y;
             }
         }
 

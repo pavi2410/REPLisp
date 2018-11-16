@@ -1,4 +1,4 @@
-export const VERSION = '0.9';
+export const VERSION = '1.1';
 
 export const HEADER = `\x1b[33;1mREPLisp v${VERSION}\x1b[0m by \x1b[35;1m@pavi2410\x1b[0m
 - Type \x1b[32m'help'\x1b[0m for usage and syntax

@@ -57,7 +57,7 @@ export default class Parser {
                 }
             }
 
-            //
+            // What's next?
         }
 
         let ast = {

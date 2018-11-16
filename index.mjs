@@ -1,6 +1,6 @@
 import readline from 'readline';
 import REPL from './REPL';
-import {HEADER, USAGE} from "./constants";
+import {HEADER, USAGE} from "./CONSTANTS";
 import test from "./Tests/test";
 
 let FLAGS = {
@@ -8,8 +8,6 @@ let FLAGS = {
     transpile: false,
     test: false
 };
-
-console.log(HEADER);
 
 const args = process.argv.slice(2);
 
@@ -41,7 +39,7 @@ rl.on('line', line => {
             console.log('Please, provide an expression!');
         }
         const run = REPL.run(line, {debug: FLAGS.debug, transpile: FLAGS.transpile});
-        console.log('\x1b[32;1m:>\x1b[37m', run, '\x1b[0m');
+        console.log('\x1b[1;37m' + run + '\x1b[0m');
     }
     rl.prompt()
 }).on('close', () => {
@@ -49,4 +47,5 @@ rl.on('line', line => {
     process.exit(0)
 });
 
+console.log(HEADER);
 rl.prompt();

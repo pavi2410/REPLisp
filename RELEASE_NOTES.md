@@ -56,3 +56,8 @@
 
 - Added strings, decimal, boolean
 - Improved Lexer
+
+### Version 1.1
+
+- Added comparision operators
+- Added support for negative numbers
