@@ -27,10 +27,12 @@ export default class Interpreter {
 
         function parseExpr(expr) {
             switch (expr.type) {
-                case 'NUM':
-                    return Number(expr.value);
+                case 'BOOL':
+                    return Boolean(expr.value);
                 case 'STR':
                     return expr.value;
+                case 'NUM':
+                    return Number(expr.value);
                 case 'CALL':
                     return call(expr.name, ...expr.args.map(parseExpr))
             }

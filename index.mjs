@@ -1,7 +1,7 @@
 import readline from 'readline';
 import REPL from './REPL';
 import {HEADER, USAGE} from "./constants";
-import test from "./test";
+import test from "./Tests/test";
 
 let FLAGS = {
     debug: false,

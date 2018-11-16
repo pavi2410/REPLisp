@@ -1,5 +1,13 @@
 export default class Lexer {
     static tokenize(code) {
+        code = code
+            .replace(/"[^"]+"/g, m => m.replace(/\s/g, '#SPACE#'))
+            .replace(/\(/g, ' ( ')
+            .replace(/\)/g, ' ) ')
+            .split(' ')
+            .filter(x => x)
+            .map(x => x.trim().replace(/#SPACE#/g, ' '));
+
         let tokens = [];
 
         function addToken(type, value) {
@@ -7,54 +15,52 @@ export default class Lexer {
         }
 
         for (let i = 0; i < code.length; i++) {
-            let char = code.charAt(i);
+            let token = code[i];
 
-            if (/\s/.test(char)) continue;
+            // Parentheses
+            if (token === '(' || token === ')') {
+                addToken('paren', token);
+                continue
+            }
 
-            // Parens
-            if (char === '(' || char === ')') {
-                addToken('paren', char);
+            // Boolean
+            const boolean = ['true', 'false'];
+            if (boolean.includes(token)) {
+                addToken('bool', token);
+                continue
             }
 
             // String
-            else if (char === '"') {
-                let value = '';
-                char = code.charAt(++i);
-
-                while (char !== '"') {
-                    value += char;
-                    char = code.charAt(++i);
-                }
-
-                char = code.charAt(++i);
-                i--;
-
-                addToken('str', value);
+            if (/"[^"]+"/.test(token)) {
+                addToken('str', token.substring(1, token.length - 1));
+                continue
             }
 
             // Number
-            else if (/\d/.test(char)) {
-                let value = char;
-                char = code.charAt(++i);
-
-                while (/\d/.test(char) || char === '.') {
-                    value += char;
-                    char = code.charAt(++i);
-                }
-                i--;
-
-                addToken('num', value);
+            if (/[\d.]+/.test(token)) {
+                addToken('num', token);
+                continue
             }
 
-            // Operators
-            else if (char === '+' || char === '-' ||
-                char === '*' || char === '/' ||
-                char === '%' || char === '^' ||
-                char === '!' || char === '-') {
-                addToken('op', char);
+            // Operator
+            const operators = ['+', '-', '*', '/', '%', '^', '!', '>', '>=', '<', '<=', '=='];
+            if (operators.includes(token)) {
+                addToken('op', token);
+                continue
+            }
+
+            // Keyword
+            const keywords = ['fun', 'var', 'set', 'if', 'else'];
+            if (keywords.includes(token)) {
+                addToken('kw', token);
+                continue
+            }
+
+            // Identifier
+            if (/\w+/.test(token)) {
+                addToken('id', token)
             }
         }
-
         return tokens
     }
 }

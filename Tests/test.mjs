@@ -1,4 +1,4 @@
-import REPL from "./REPL";
+import REPL from "../REPL";
 
 const cases = {
     '(+ 55 6)': 61,
@@ -11,7 +11,9 @@ const cases = {
     '(+ (/ 8 5) (* (- (% 5 4) 6) 7))': -33.4,
     '(/ 1 0)': Infinity,
     '(+ 0.2 3)': 3.2,
-    '(+ "hello " "world")': 'hello world'
+    '(+ "hello" " " "world")': 'hello world',
+    '(+ "2 + 5 = " (+ 2 5))': '2 + 5 = 7',
+    '(+ "true = " true)': 'true = true'
 };
 
 export default function test({debug, transpile}) {
@@ -21,9 +23,9 @@ export default function test({debug, transpile}) {
     for (const [code, answer] of Object.entries(cases)) {
         const result = REPL.run(code, {debug, transpile});
         if (result === answer) {
-            console.log(`\x1b[32mCASE ${index++} of ${length} PASSED : ${code} = ${result}\x1b[0m`)
+            console.log(`\x1b[32mCASE ${index++} of ${length} PASSED: ${code} = ${result}\x1b[0m`)
         } else {
-            console.log(`\x1b[31mCASE ${index++} of ${length} FAILED : ${code} = ${result} (${answer} expected)\x1b[0m`)
+            console.log(`\x1b[31mCASE ${index++} of ${length} FAILED: ${code} = ${result} (${answer} expected)\x1b[0m`)
         }
     }
 }

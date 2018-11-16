@@ -6,24 +6,7 @@ export default class Parser {
 
             let token = tokens[i];
 
-            if (token.type === 'num') {
-                i++;
-
-                return {
-                    type: 'NUM',
-                    value: token.value
-                }
-            }
-
-            if (token.type === 'str') {
-                i++;
-
-                return {
-                    type: 'STR',
-                    value: token.value
-                }
-            }
-
+            // Parentheses
             if (token.type === 'paren' && token.value === '(') {
                 token = tokens[++i];
 
@@ -43,6 +26,38 @@ export default class Parser {
 
                 return node
             }
+
+            // Boolean
+            if (token.type === 'bool') {
+                i++;
+
+                return {
+                    type: 'BOOL',
+                    value: token.value
+                }
+            }
+
+            // String
+            if (token.type === 'str') {
+                i++;
+
+                return {
+                    type: 'STR',
+                    value: token.value
+                }
+            }
+
+            // Number
+            if (token.type === 'num') {
+                i++;
+
+                return {
+                    type: 'NUM',
+                    value: token.value
+                }
+            }
+
+            //
         }
 
         let ast = {

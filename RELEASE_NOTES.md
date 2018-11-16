@@ -51,3 +51,8 @@
   - `--debug`: Show tokens & AST in REPL mode
   - `--transpile`: Show transpiled JS in REPL mode
   - `--test`: Run tests (can be coupled with `--debug` & `--transpile`)
+  
+### Version 1.0
+
+- Added strings, decimal, boolean
+- Improved Lexer

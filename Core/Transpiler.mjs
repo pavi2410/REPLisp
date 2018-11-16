@@ -24,10 +24,12 @@ export default class Transpiler {
 
         function parseExpr(expr) {
             switch (expr.type) {
-                case 'NUM':
+                case 'BOOL':
                     return expr.value;
                 case 'STR':
                     return '"' + expr.value + '"';
+                case 'NUM':
+                    return expr.value;
                 case 'CALL':
                     return '(' + call(expr.name, ...expr.args.map(parseExpr)) + ')'
             }
