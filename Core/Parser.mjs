@@ -1,5 +1,17 @@
 export default class Parser {
-    static parse(tokens) {
+    static tokenize(code) {
+        return code
+            .replace(/"[^"]+"/g, m => m.replace(/\s/g, '#SPACE#'))
+            .replace(/\(/g, ' ( ')
+            .replace(/\)/g, ' ) ')
+            .split(' ')
+            .filter(x => x)
+            .map(x => x.trim().replace(/#SPACE#/g, ' '))
+    }
+
+    static parse(code) {
+        const tokens = this.tokenize(code);
+
         let i = 0;
 
         function walk() {
@@ -7,7 +19,7 @@ export default class Parser {
             let token = tokens.shift();
 
             // Parentheses
-            if (token.type === 'paren' && token.value === '(') {
+            if (token === '(') {
                 token = tokens[++i];
 
                 let node = {
@@ -17,7 +29,7 @@ export default class Parser {
                 };
 
                 token = tokens[++i];
-                while (token.type !== 'paren' || token.type === 'paren' && token.value !== ')') {
+                while (token.value !== ')') {
                     node.args.push(walk());
                     token = tokens[i]
                 }
@@ -28,7 +40,7 @@ export default class Parser {
             }
 
             // Boolean
-            if (token.type === 'bool') {
+            if (token in ['true', 'false']) {
                 i++;
 
                 return {
@@ -38,26 +50,26 @@ export default class Parser {
             }
 
             // String
-            if (token.type === 'str') {
+            if (/"[^"]"/.test(token)) {
                 i++;
 
                 return {
                     type: 'StringLiteral',
-                    value: token.value.substring(1, token.value.length - 1)
+                    value: token.value.substring(1, token.length - 1)
                 }
             }
 
             // Number
-            if (token.type === 'num') {
+            if (/-?[\d.]+/.test(token)) {
                 i++;
 
                 return {
                     type: 'NumberLiteral',
-                    value: token.value
+                    value: token
                 }
             }
 
-            if (token.type === 'kw' && token.value === 'fun') {
+            if (token === 'fun') {
                 let fun = {
                     type: 'FunctionStatement',
                     name: '',
@@ -66,20 +78,21 @@ export default class Parser {
                 };
 
                 token = tokens[++i];
-                if (token.type === 'id') {
-                    fun.name = token.value
+                // identifier
+                if (/[A-z]\w+/.test(token)) {
+                    fun.name = token
                 }
 
                 token = tokens[++i];
-                if (token.type === 'paren' && token.value === '(') {
+                if (token === '(') {
 
                     let node = {
-                        name: token.value,
+                        name: token,
                         value: []
                     };
 
                     token = tokens[++i];
-                    while (token.type !== 'paren' || token.type === 'paren' && token.value !== ')') {
+                    while (token !== ')') {
                         node.value.push(walk());
                         token = tokens[i]
                     }

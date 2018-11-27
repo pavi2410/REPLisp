@@ -39,7 +39,7 @@ export default class Interpreter {
             }
         }
 
-        function parseExpr(expr) {
+        function evalExpr(expr) {
             switch (expr.type) {
                 case 'BooleanLiteral':
                     return expr.value === 'true';
@@ -48,7 +48,7 @@ export default class Interpreter {
                 case 'NumberLiteral':
                     return Number(expr.value);
                 case 'CallExpression':
-                    return call(expr.name, ...expr.args.map(parseExpr));
+                    return call(expr.name, ...expr.args.map(evalExpr));
                 case 'FunctionStatement':
                     // Todo
                 case 'VariableStatement':
@@ -57,7 +57,7 @@ export default class Interpreter {
         }
 
         if (ast.type === 'Program') {
-            return parseExpr(ast.body[0])
+            return evalExpr(ast.body[0])
         }
     }
 }
