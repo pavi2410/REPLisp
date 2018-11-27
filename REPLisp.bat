@@ -1,3 +1,3 @@
 @echo off
 cls
-node --experimental-modules --no-warnings REPLisp.mjs %*
+node --experimental-modules --no-warnings --title=REPLisp REPLisp.mjs %*

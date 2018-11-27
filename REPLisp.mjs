@@ -1,3 +1,4 @@
+#!/usr/bin/node --experimental-modules --no-warnings --title=REPLisp
 import readline from 'readline';
 import REPL from './Core/REPL.mjs';
 import {HEADER, USAGE} from "./CONSTANTS.mjs";
