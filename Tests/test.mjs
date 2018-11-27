@@ -1,4 +1,4 @@
-import REPL from "../REPL";
+import REPL from "../Core/REPL.mjs";
 
 const cases = {
     '(+ 55 6)': 61,
@@ -13,6 +13,10 @@ const cases = {
     '(< 7 3)': false,
     '(<= 6 4)': false,
     '(== 5 5)': true,
+    '(not false)': true,
+    '(or true false)': true,
+    '(and true true)': true,
+    '(if true 1 0)': 1,
     '(+ (+ 9 9) (* 9 9))': 99,
     '(+ (/ 8 5) (* (- (% 5 4) 6) 7))': -33.4,
     '(/ 1 0)': Infinity,
@@ -23,12 +27,12 @@ const cases = {
     '(+ "true = " true)': 'true = true'
 };
 
-export default function test({debug, transpile}) {
+export default function test(debug) {
     const length = Object.keys(cases).length;
     let index = 1;
 
     for (const [code, answer] of Object.entries(cases)) {
-        const result = REPL.run(code, {debug, transpile});
+        const result = REPL.run(code, debug);
         if (result === answer) {
             console.log(`\x1b[32mCASE ${index++} of ${length} PASSED: ${code} = ${result}\x1b[0m`)
         } else {

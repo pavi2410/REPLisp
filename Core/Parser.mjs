@@ -4,14 +4,14 @@ export default class Parser {
 
         function walk() {
 
-            let token = tokens[i];
+            let token = tokens.shift();
 
             // Parentheses
             if (token.type === 'paren' && token.value === '(') {
                 token = tokens[++i];
 
                 let node = {
-                    type: 'CALL',
+                    type: 'CallExpression',
                     name: token.value,
                     args: []
                 };
@@ -32,7 +32,7 @@ export default class Parser {
                 i++;
 
                 return {
-                    type: 'BOOL',
+                    type: 'BooleanLiteral',
                     value: token.value
                 }
             }
@@ -42,8 +42,8 @@ export default class Parser {
                 i++;
 
                 return {
-                    type: 'STR',
-                    value: token.value
+                    type: 'StringLiteral',
+                    value: token.value.substring(1, token.value.length - 1)
                 }
             }
 
@@ -52,12 +52,47 @@ export default class Parser {
                 i++;
 
                 return {
-                    type: 'NUM',
+                    type: 'NumberLiteral',
                     value: token.value
                 }
             }
 
-            // What's next?
+            if (token.type === 'kw' && token.value === 'fun') {
+                let fun = {
+                    type: 'FunctionStatement',
+                    name: '',
+                    args: [],
+                    body: []
+                };
+
+                token = tokens[++i];
+                if (token.type === 'id') {
+                    fun.name = token.value
+                }
+
+                token = tokens[++i];
+                if (token.type === 'paren' && token.value === '(') {
+
+                    let node = {
+                        name: token.value,
+                        value: []
+                    };
+
+                    token = tokens[++i];
+                    while (token.type !== 'paren' || token.type === 'paren' && token.value !== ')') {
+                        node.value.push(walk());
+                        token = tokens[i]
+                    }
+
+                    i++;
+
+                    return node
+                }
+
+                return fun
+            }
+
+            throw new Error(`I don't know what to do with this token: ${token.value} (${token.type})`);
         }
 
         let ast = {

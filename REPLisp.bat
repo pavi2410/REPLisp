@@ -1,3 +1,3 @@
 @echo off
 cls
-node --experimental-modules index.mjs %* 2>nul
+node --experimental-modules --no-warnings REPLisp.mjs %*

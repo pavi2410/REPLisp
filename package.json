@@ -2,10 +2,7 @@
   "name": "replisp",
   "version": "1.1.0",
   "description": "A mini Lisp-like interpreted language.",
-  "main": "index.mjs",
-  "scripts": {
-    "test": "node --experimental-modules index.mjs --test"
-  },
+  "main": "REPLisp.mjs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pavi2410/REPLisp.git"

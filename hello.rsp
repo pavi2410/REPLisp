@@ -1,0 +1,5 @@
+(fun greet (name) (
+    (print (+ "hello " name))
+)
+
+(greet "world")

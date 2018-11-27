@@ -1,5 +1,3 @@
-import {ReMath} from "../Runtime/runtime";
-
 export default class Interpreter {
     static interpret(ast) {
 
@@ -20,8 +18,6 @@ export default class Interpreter {
                     return x % y;
                 case '^':
                     return x ** y;
-                case '!':
-                    return ReMath.factorial(x);
                 case '>':
                     return x > y;
                 case '>=':
@@ -31,20 +27,32 @@ export default class Interpreter {
                 case '<=':
                     return x <= y;
                 case '==':
-                    return x == y;
+                    return x === y;
+                case 'not':
+                    return !x;
+                case 'or':
+                    return x || y;
+                case 'and':
+                    return x && y;
+                case 'if':
+                    return x ? y : args[1];
             }
         }
 
         function parseExpr(expr) {
             switch (expr.type) {
-                case 'BOOL':
-                    return Boolean(expr.value);
-                case 'STR':
+                case 'BooleanLiteral':
+                    return expr.value === 'true';
+                case 'StringLiteral':
                     return expr.value;
-                case 'NUM':
+                case 'NumberLiteral':
                     return Number(expr.value);
-                case 'CALL':
-                    return call(expr.name, ...expr.args.map(parseExpr))
+                case 'CallExpression':
+                    return call(expr.name, ...expr.args.map(parseExpr));
+                case 'FunctionStatement':
+                    // Todo
+                case 'VariableStatement':
+                    // Todo
             }
         }
 
