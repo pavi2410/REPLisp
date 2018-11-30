@@ -2,13 +2,16 @@
 
 ## Usage
 
-  ```
-  REPLisp --help
-  ```
+  > You must have NodeJS installed.
 
-## File extension
-
-  This language uses `.rep` as its file extension
+  To start the REPL, run
+  ```
+  node REPLisp.js
+  ```
+  To execute a file (`.rep`), run
+  ```
+  node REPLisp.js <file.rep>
+  ```
 
 ## Syntax
 
@@ -54,13 +57,13 @@
   (xor true true)
 
   # Loop
-  (while true (
+  (while true
     # Do some work
-  ))
+  )
 
-  (for (var i 0) (< i 10) (+ i 1) (
+  (for (var i 0) (< i 10) (+ i 1)
     # Do your work
-  ))
+  )
 
   # Variable
   (var i 0)
@@ -70,9 +73,9 @@
   (print i) # 10
 
   # Function
-  (fun greet (name) (
+  (function greet (name)
     (print (+ "Hello, " name "!"))
-  ))
+  )
 
   (greet "world") # Hello, world!
 
@@ -83,7 +86,7 @@
 ## Testing
 
   ```
-  REPLisp --test [--debug]
+  node test.js
   ```
 
 ---
@@ -95,3 +98,5 @@
 - http://norvig.com/lispy2.html
 - http://www.craftinginterpreters.com
 - http://lisperator.net/pltut/
+- https://github.com/kanaka/mal/
+- https://github.com/kanaka/miniMAL/
