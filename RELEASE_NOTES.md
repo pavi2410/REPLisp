@@ -61,3 +61,8 @@
 
 - Added comparision operators
 - Added support for negative numbers
+
+### Version 2.0
+
+- Consolidated all files into one
+- Implementation from https://github.com/kanaka/miniMAL
