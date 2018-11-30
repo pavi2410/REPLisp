@@ -43,8 +43,8 @@ function atom(token) {
         return num
     }
 
-    if (/""/.test(token)) {
-        return String()
+    if (/"[^"]*"/.test(token)) {
+        return token.replace(/"([^"]*)"/, '$1')
     }
     return token
 }
@@ -150,7 +150,7 @@ if (process.argv[2] && process.argv[2].endsWith('.rep')) {
     }
     process.exit()
 } else {
-    console.log(`\x1b[93mREPLisp v${VERSION}\x1b[0m by \x1b[95m@pavi2410\x1b[0m
+    console.log(`\x1b[93mREPLisp v2.0\x1b[0m by \x1b[95m@pavi2410\x1b[0m
   \x1b[94;4mhttps://github.com/pavi2410/REPLisp\x1b[0m`);
     repl.start({
         prompt: 'REPLisp> ',
