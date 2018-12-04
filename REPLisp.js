@@ -123,13 +123,12 @@ function EVAL(ast, env) {
             }
             ast = EVAL(ast[1], env) ? ast[3] : ast[4];
         } else {                      // invoke list form
-            let el = eval_ast_or_bind(ast, env),
-                f = el[0];
+            let [f, ...a] = eval_ast_or_bind(ast, env);
             if (f.A) {
                 ast = f.A[0];
-                env = eval_ast_or_bind(f.A[2], f.A[1], el.slice(1))
+                env = eval_ast_or_bind(f.A[2], f.A[1], a)
             } else {
-                return typeof f === 'function' ? f(...el.slice(1)) : f;
+                return typeof f === 'function' ? f(...a) : f;
             }
         }
     }
