@@ -21,7 +21,7 @@ let Env = Object.assign(this, {
     'print': console.log,
     'eval': (...a) => EVAL(a[0], Env),
     'args': process.argv.slice(3),
-    'throw': (...a) => { throw(a[0])},
+    'throw': (...a) => { throw(a[0]) },
 });
 
 
@@ -56,15 +56,15 @@ function read(tokens) {
 
     // Grab the first token.
     let token = tokens.shift();
-    if (token === "(") {
+    if (token === '(') {
         let list = [];
-        while (tokens[0] && tokens[0] !== ")") {
+        while (tokens[0] && tokens[0] !== ')') {
             list.push(read(tokens))
         }
         // Keep going (since we may have nested lists).
         tokens.shift();
         return list
-    } else if (token === ")") {
+    } else if (token === ')') {
         throw new Error("Unexpected token ')'")
     } else {
         return atom(token)
@@ -85,7 +85,7 @@ function eval_ast_or_bind(ast, env, exprs) {
     if (exprs) {
         env = Object.create(env);
         if (Array.isArray(ast)) {
-            ast.some((a, i) => a === "&" ? env[ast[i + 1]] = exprs.slice(i) : (env[a] = exprs[i], 0));
+            ast.some((a, i) => a === '&' ? env[ast[i + 1]] = exprs.slice(i) : (env[a] = exprs[i], 0));
         }
         return env;
     }
@@ -95,7 +95,7 @@ function eval_ast_or_bind(ast, env, exprs) {
         : typeof ast == 'string'
             ? ast in env
                 ? env[ast]
-                : Env.throw(ast + " not found")
+                : Env.throw(`${ast} not found`)
             : ast
 }
 
@@ -143,7 +143,7 @@ function REPL(code) {
 if (process.argv[2] && process.argv[2].endsWith('.rep')) {
     const file = fs.readFileSync(process.argv[2], 'utf-8');
     try {
-        console.log('=>' + REPL(file))
+        console.log('=> ' + REPL(file))
     } catch (e) {
         console.log(e)
     }
