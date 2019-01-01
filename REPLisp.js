@@ -26,12 +26,12 @@ let Env = Object.assign(this, {
 
 
 function tokenize(lines) {
-    lines = lines.replace(/"[^"]*"/g, s => s.replace(/\s/g, '!SPACE!'))
-    lines = lines.replace(/([()])/g, ' $1 ')
-    lines = lines.split(/\s+/g)
-    lines = lines.filter(x => x.trim())
-    lines = lines.map(x => x.replace(/!SPACE!/g, ' '))
     return lines
+        .replace(/"[^"]*"/g, s => s.replace(/\s/g, '!SPACE!'))
+        .replace(/([()])/g, ' $1 ')
+        .split(/\s+/g)
+        .filter(x => x.trim())
+        .map(x => x.replace(/!SPACE!/g, ' '))
 }
 
 function atom(token) {
