@@ -42,6 +42,7 @@
   (* 2 7) # multiplication
   (/ 8 3) # division
   (^ 2 3) # power
+  (% 7 5) # modulo
 
   # Comparion
   (= 5 5)  # equal to
@@ -63,9 +64,7 @@
   
   # Variable
   (var i 0)
-
   (set i (+ i 10))
-
   (print i) # 10
 
   # Function

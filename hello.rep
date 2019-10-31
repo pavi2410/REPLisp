@@ -1,3 +1,0 @@
-(var greet (function (name) (print name)))
-
-(print (greet "hello lol"))

@@ -2,7 +2,7 @@
   "name": "replisp",
   "version": "2.0.0",
   "description": "A mini Lisp-like interpreted language.",
-  "main": "REPLisp.js",
+  "main": "src/REPLisp.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pavi2410/REPLisp.git"

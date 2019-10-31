@@ -1,0 +1,5 @@
+(function greet (word)
+    (print "hello, " word "!")
+)
+
+(greet (select args 1))

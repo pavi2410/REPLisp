@@ -1,0 +1,7 @@
+(var haha
+    (function sum (a b)
+        (+ a b)
+    )
+)
+
+(print (haha 5 5))
