@@ -57,14 +57,10 @@
   (xor true true)
 
   # Loop
-  (while true
-    # Do some work
+  (for (i) in (range 5)
+    (print i)
   )
-
-  (for (var i 0) (< i 10) (+ i 1)
-    # Do your work
-  )
-
+  
   # Variable
   (var i 0)
 
