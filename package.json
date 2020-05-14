@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "A mini Lisp-like interpreted language.",
   "main": "src/REPLisp.js",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pavi2410/REPLisp.git"
@@ -19,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/pavi2410/REPLisp/issues"
   },
-  "homepage": "https://github.com/pavi2410/REPLisp#readme"
+  "homepage": "https://github.com/pavi2410/REPLisp#readme",
+  "dependencies": {
+    "es-main": "^1.0.2"
+  }
 }

@@ -1,63 +1,60 @@
-const {start} = require('repl');
-const {readFileSync} = require('fs');
+import {start} from "repl";
+import {readFileSync} from "fs";
 
-const tokenize = lines => lines
-    .replace(/#.*$/g, '')
-    .replace(/"[^"]*?"/g, s => s.replace(/\s/g, '!SPACE!'))
-    .replace(/([()[\]])/g, ' $1 ')
-    .trim()
-    .split(/\s+/g)
-    .map(x => x.replace(/!SPACE!/g, ' '));
+import esMain from 'es-main'
+
+function clean(lines) {
+    return lines
+        .replace(/#.*/g, '') // remove comments
+        .replace(/\s+/g, ' '); // remove any whitespace
+}
+
+function tokenize(lines) {
+    return lines
+        .replace(/"[^"]*?"/g, s => s.replace(/\s/g, '!SPACE!')) // preserve spaces in string
+        .replace(/([()])/g, ' $1 ')
+        .trim()
+        .split(/\s+/g)
+        .map(x => x.replace(/!SPACE!/g, ' ')); // restore spaces in string
+}
 
 const isBoolean = token => token === 'true' || token === 'false';
 
-const isNumber = token => /^-?\d+(\.\d+|e)?$/.test(token);
-
-const isString = token => /"[^"]*?"/.test(token);
-
 function atom(token) {
-    if (isBoolean(token)) return token === 'true';
-    if (isNumber(token)) return Number(token);
-    return token
+    if (!isNaN(parseFloat(token))) {
+        return {type: 'number', value: parseFloat(token)};
+    }
+    if (token[0] === '"' && token.slice(-1) === '"') {
+        return {type: 'string', value: token.slice(1, -1)};
+    }
+    if (isBoolean(token)) {
+        return {type: 'boolean', value: token === 'true'};
+    }
+    return {type: 'identifier', value: token};
 }
 
-function read(tokens) {
-    if (tokens.length === 0) return;
-
-    let token = tokens.shift(); // Grab the first token.
-    switch (token) {
-        case '(':
-            let list = [];
-            while (tokens[0] && tokens[0] !== ')') {
-                list.push(read(tokens))
-            }
-            tokens.shift(); // Keep going (since we may have nested lists).
+function parse(input, list) {
+    if (list === undefined) {
+        return parse(input, []);
+    } else {
+        const token = input.shift();
+        if (token === undefined) {
             return list;
-        case '[':
-            let values = [];
-            while (tokens[0] && tokens[0] !== ']') {
-                values.push(read(tokens))
-            }
-            tokens.shift(); // Keep going (since we may have nested lists).
-            return values;
-        case ']':
-        case ')':
-            throw new SyntaxError("Unexpected token: )");
-        default:
-            return atom(token)
+        } else if (token === "(") {
+            list.push(parse(input, []));
+            return parse(input, list);
+        } else if (token === ")") {
+            return list;
+        } else {
+            return parse(input, list.concat(atom(token)));
+        }
     }
-}
-
-function $parse(tokens) {
-    let ast = [];
-
-    while (tokens.length !== 0) {
-        ast.push(read(tokens))
-    }
-    return ast
 }
 
 const $ENV = {
+    'first': x => x[0],
+    'rest': x => x.slice(1),
+    'print': (...x) => console.log(x.join('')),
     '+': (a, b) => a + b,
     '-': (a, b) => a - b,
     '*': (x, y) => x * y,
@@ -74,105 +71,96 @@ const $ENV = {
     'or': (a, b) => a || b,
     'and': (a, b) => a && b,
     'is?': (a, b) => a instanceof b,
-    'typeof': a => typeof a,
-    'print': (...a) => console.log(a.join('')),
+    'type-of': a => typeof a,
     'args': process.argv.slice(3).map(atom),
-    'listof': (...a) => a,
+    'list': (...a) => a,
     'select': (a, b) => a[b - 1],
-    'size': (...a) => a[0][0]
+    'size': (...a) => a.length
 };
 
-function eval_ast_or_bind(ast, env, args) {
-    if (args) {
-        env = Object.create(env);
-        if (ast instanceof Array) {
-            ast.some((a, i) => a === '&' ? env[ast[i + 1]] = args.slice(i) : (env[a] = args[i], 0));
+class Context {
+    scope;
+    parentScope;
+
+    constructor(scope, parentScope) {
+        this.scope = scope;
+        this.parentScope = parentScope;
+    }
+
+    find(sym) {
+        if (sym in this.scope) {
+            return this;
+        } else {
+            return this.parentScope.find(sym);
         }
-        return env;
     }
-    // Evaluate the form/ast
-    if (ast instanceof Array) {
-        return ast.map(a => $eval(a, env))
+
+    get(sym) {
+        return this.scope[sym];
     }
-    if (typeof ast == 'string') {
-        if (ast in env) {
-            return env[ast]
+
+    set(sym, fun) {
+        this.scope[sym] = fun;
+    }
+}
+
+function interpret(input, context = new Context($ENV)) {
+    if (input.type === "identifier") {
+        return context.find(input.value).get(input.value);
+    } else if (input.type === "number" || input.type === "string" || input.type === "boolean") {
+        return input.value;
+    }
+    if (input instanceof Array) {
+        const [op, ...args] = input
+        if (op.value === 'var') {
+            const [/* var */, {value: name}, {value: val}] = input;
+            return context[name] = interpret(val, context);
+        } else if (op.value === 'function') {
+            const [/* function */, {value: name}, {value: params}, {value: body}] = input;
+            let f = (...a) => interpret(body, eval_ast_or_bind(params, context, a));
+            f.__args__ = params;
+            f.__body__ = body;
+            f.__env__ = context;
+            return context[name] = f;
+        } else if (op === 'if') {
+            const [/* if */, {value: condition}, {value: true_block}, {value: false_block}] = input;
+            return interpret(condition, context) ? interpret(true_block, context) : interpret(false_block, context);
+        } else {
+            env.find
+            let [f, ...a] = eval_ast_or_bind(input, context);
+            if (typeof f === 'function') {
+                return f(...a);
+            }
+            return f;
         }
-        if (isString(ast)) {
-            return ast.substring(1, ast.length - 1) // Remove quotes
-        }
-        throw new ReferenceError(`${ast} not found`)
-    }
-    return ast
-}
-
-function process_var(statement, env) {
-    const [/* var */, id, val] = statement;
-    return env[id] = $eval(val, env);
-}
-
-function process_function(statement, env) {
-    const [/* function */, id, params, body] = statement;
-    let f = (...a) => $eval(body, eval_ast_or_bind(params, env, a));
-    f.__args__ = params;
-    f.__body__ = body;
-    f.__env__ = env;
-    return env[id] = f;
-}
-
-function process_if(statement, env) {
-    const [/* if */, condition, /* then */, true_block, /* else */, false_block] = statement;
-    return $eval(condition, env) ? $eval(true_block, env) : $eval(false_block, env);
-}
-
-function invoke_function(ast, env) {
-    let [f, ...a] = eval_ast_or_bind(ast, env);
-    if (typeof f === 'function') {
-        return f(...a);
-    }
-    return f;
-}
-
-function $eval(ast, env) {
-    if (ast instanceof Array) {
-        switch (ast[0]) {
-            case 'var':
-                return process_var(ast, env);
-            case 'function':
-                return process_function(ast, env);
-            case 'if':
-                return process_if(ast, env);
-            default:
-                return invoke_function(ast, env)
-        }
-    } else {
-        return eval_ast_or_bind(ast, env);
     }
 }
 
-function $REPL(code) {
+export default function $REPL(code) {
     try {
-        return $eval($parse(tokenize(code)), $ENV)
+        return interpret(parse(tokenize(clean(code))))
     } catch (e) {
-        console.log(`\x1b[31m${e.toString()}\x1b[0m`)
+        console.log(`\x1b[31m${e.toString()}\x1b[0m`);
+        return null
     }
 }
 
 // REPL
-if (require.main === module) {
+if (esMain(import.meta)) {
     const filename = process.argv[2];
     if (filename && filename.endsWith('.rep')) {
-        console.log($REPL(readFileSync(filename, 'utf-8')));
-        return;
+        let output = $REPL(readFileSync(filename, 'utf-8'));
+        if (output) {
+            console.log(output);
+            process.exit(0)
+        } else {
+            process.exit(1)
+        }
     }
-    console.log(`\x1b[93mREPLisp v2.0\x1b[0m by \x1b[95m@pavi2410\x1b[0m`);
-    console.log(`\x1b[94;4mhttps://github.com/pavi2410/REPLisp\x1b[0m`);
+    console.log("\x1b[93mREPLisp v2.0\x1b[0m by \x1b[95m@pavi2410\x1b[0m");
+    console.log("\x1b[94;4mhttps://github.com/pavi2410/REPLisp\x1b[0m");
     start({
         prompt: 'REPLisp> ',
-        input: process.stdin,
-        output: process.stdout,
         eval: $REPL
     });
 }
-
-module.exports = {$REPL};

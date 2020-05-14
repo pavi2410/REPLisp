@@ -95,3 +95,6 @@
 - http://lisperator.net/pltut/
 - https://github.com/kanaka/mal/
 - https://github.com/kanaka/miniMAL/
+- https://maryrosecook.com/blog/post/little-lisp-interpreter
+- https://compilers.iecc.com/crenshaw/
+- http://buildyourownlisp.com/

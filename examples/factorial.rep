@@ -4,4 +4,4 @@
         else (* n (factorial (- n 1)))
     )
 )
-(print (factorial (select args 0)))
+(print (factorial 5))

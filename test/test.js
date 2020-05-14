@@ -1,4 +1,4 @@
-const {$REPL} = require('../src/REPLisp.js');
+import $REPL from "../src/REPLisp.js";
 
 const cases = {
     '(+ 55 6)': 61,
@@ -34,10 +34,10 @@ for (const [code, answer] of Object.entries(cases)) {
     const t2 = process.hrtime()[1];
     if (result === answer) {
         score++;
-        console.log(`\x1b[32m✔ ${index++}/${length} @ ${Math.round((t2 - t1) / 1000) / 1000}ms:\n=>${code}\n==${result}\x1b[0m`)
+        console.log(`\x1b[32m✔ ${index++}/${length} @ ${Math.round((t2 - t1) / 1000) / 1000}ms:\n=> ${code}\n== ${result}\x1b[0m`)
     } else {
-        console.log(`\x1b[31m❌ ${index++}/${length}:\n=>${code}\n==${result} (${answer} expected)\x1b[0m`)
+        console.log(`\x1b[31m❌ ${index++}/${length}:\n=> ${code}\n== ${result} (${answer} expected)\x1b[0m`)
     }
     console.log('~'.repeat(25));
 }
-console.log(`Test score is ${score*100/length}%`);
+console.log(`Test score is ${Math.round(score * 100 / length)}%`);
