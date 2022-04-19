@@ -1,1 +1,0 @@
-@C:\Users\Pavitra\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\201.7223.86\bin\cmake\win\bin\cmake.exe --build C:\Users\Pavitra\CLionProjects\REPLispy\cmake-build-debug --target REPLispy -- -j 8

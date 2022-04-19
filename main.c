@@ -16,8 +16,7 @@ char *readline(char *prompt) {
 void add_history(char *unused) {}
 
 #else
-#include <editline/readline.h>
-#include <editline/history.h>
+#include "editline.h"
 #endif
 
 int str_endswith(char *str, char *suffix) {
@@ -967,20 +966,18 @@ int main(int argc, char **argv) {
     Sexpr = mpc_new("sexpr");
     Qexpr = mpc_new("qexpr");
     Expr = mpc_new("expr");
-    Lispy = mpc_new("lispy");
+    Lispy = mpc_new("lisp");
 
     mpca_lang(MPCA_LANG_DEFAULT,
-              "                                              \
-      number  : /-?[0-9]+/ ;                       \
-      symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ; \
-      string  : /\"(\\\\.|[^\"])*\"/ ;             \
-      comment : /;[^\\r\\n]*/ ;                    \
-      sexpr   : '(' <expr>* ')' ;                  \
-      qexpr   : '{' <expr>* '}' ;                  \
-      expr    : <number>  | <symbol> | <string>    \
-              | <comment> | <sexpr>  | <qexpr>;    \
-      lispy   : /^/ <expr>* /$/ ;                  \
-    ",
+              "number : /-?[0-9]+/ ;"
+              "symbol : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;"
+              "string : /\"(\\\\.|[^\"])*\"/ ;"
+              "comment : /;[^\\r\\n]*/ ;"
+              "sexpr : '(' <expr>* ')' ;"
+              "qexpr : '{' <expr>* '}' ;"
+              "expr : <number> | <symbol> | <string>"
+              "     | <comment> | <sexpr> | <qexpr> ;"
+              "lisp : /^/ <expr>* /$/ ;",
               Number, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lispy);
 
     lenv *e = lenv_new();
@@ -991,7 +988,7 @@ int main(int argc, char **argv) {
     /* Interactive Prompt */
     if (argc == 1) {
 
-        puts("REPLispy Version 1.0");
+        puts("REPLisp Version 1.0");
         puts("Press Ctrl+C to Exit\n");
 
         while (1) {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
-project(REPLispy C)
+project(REPLisp C)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 23)
 
-add_executable(REPLispy main.c mpc.c mpc.h)
+add_executable(REPLisp main.c mpc.c mpc.h)
