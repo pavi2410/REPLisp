@@ -2,6 +2,20 @@ use std::io::Write;
 use std::io::stdin;
 use std::io::stdout;
 
+/*
+   GRAMMAR
+
+   number : /-?[0-9]+/
+   symbol : /[a-zA-Z0-9_+\-*\/\\=<>!&]+/
+   string : '"' (\\.|[^\"])* '"'
+   comment : ';' [^\r\n]*
+   sexpr : '(' <expr>* ')'
+   qexpr : '{' <expr>* '}'
+   expr : <number> | <symbol> | <string>"
+        | <comment> | <sexpr> | <qexpr>
+   lisp : <expr>*
+*/
+
 fn main() {
     println!("REPLisp");
     loop {
