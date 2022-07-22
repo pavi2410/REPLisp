@@ -17,7 +17,9 @@ use std::io::stdout;
 */
 
 fn main() {
-    println!("REPLisp");
+    println!("REPLisp v2.0");
+    println!("Type :q to quit");
+
     loop {
         let input = prompt("> ");
 
