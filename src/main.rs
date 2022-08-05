@@ -1,3 +1,4 @@
+use std::collections::vec_deque::VecDeque;
 use std::io::stdin;
 use std::io::stdout;
 use std::io::Write;
@@ -5,6 +6,7 @@ use std::io::Write;
 use lexer::Token;
 
 mod lexer;
+mod parser;
 
 /*
    GRAMMAR
@@ -35,8 +37,12 @@ fn main() {
 
         println!("tokens -> {:?}", tokens);
 
-        // let ast = parse(tokens);
+        let ast = parser::parse(&mut VecDeque::from(tokens));
+
+        println!("ast -> {:?}", ast);
+
         // let output = eval(ast);
+        // print(output);
     }
 }
 
