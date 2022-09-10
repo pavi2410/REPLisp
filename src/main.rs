@@ -1,3 +1,5 @@
+extern crate core;
+
 use std::collections::vec_deque::VecDeque;
 use std::io::stdin;
 use std::io::stdout;
@@ -7,6 +9,7 @@ use lexer::Token;
 
 mod lexer;
 mod parser;
+mod eval;
 
 /*
    GRAMMAR
@@ -41,8 +44,8 @@ fn main() {
 
         println!("ast -> {:?}", ast);
 
-        // let output = eval(ast);
-        // print(output);
+        // let output = eval::eval(ast);
+        // println!("{:?}", output);
     }
 }
 
