@@ -3,21 +3,14 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-use std::collections::vec_deque::VecDeque;
 use std::io::stdin;
 use std::io::stdout;
 use std::io::Write;
 
 use clap::Parser as ClapParser;
-use pest::error::Error;
-use pest::iterators::Pairs;
 use pest::Parser as PestParser;
 
-use lexer::Token;
-
-mod lexer;
-mod parser;
-mod eval;
+mod test_parser;
 
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
