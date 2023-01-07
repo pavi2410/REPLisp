@@ -1,10 +1,9 @@
 WHITESPACE = _{ " " | "\t" | NEWLINE }
 COMMENT = _{ "#" ~ ( !NEWLINE ~ ANY )* }
 
-number = @{ sign? ~ ( "0"* ~ int ) ~ decimal? }
 sign = { "+" | "-" }
-int = { ASCII_DIGIT+ }
-decimal = { "." ~ int }
+integer = @{  sign? ~ ASCII_DIGIT+ }
+decimal = @{  sign? ~ ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
 
 boolean = { "true" | "false" }
 
@@ -12,8 +11,8 @@ string = @{ "\"" ~ char* ~ "\"" }
 escape_char = { "\\" ~ ( ASCII_ALPHA_LOWER | "\"" | "\\" ) }
 char = { !"\"" ~ ( escape_char | ANY ) }
 
-expr = { boolean | string | number }
-ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
-list = { "(" ~ ( list | expr | ident )* ~")" }
+expr = { list | boolean | string | decimal | integer | ident }
+ident = @{ ASCII_ALPHA ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
+list = { "(" ~ expr* ~")" }
 
-program = _{ SOI ~ list* ~ &EOI }
+program = _{ SOI ~ expr* ~ &EOI }

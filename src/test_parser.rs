@@ -4,16 +4,24 @@ mod tests {
     use crate::{ReplispParser, Rule};
 
     #[test]
-    fn it_should_parse_numbers() {
-        assert!(ReplispParser::parse(Rule::number, "1").is_ok());
-        assert!(ReplispParser::parse(Rule::number, "1.5").is_ok());
-        assert!(ReplispParser::parse(Rule::number, "-1.5").is_ok());
-        assert!(ReplispParser::parse(Rule::number, "-01.5").is_ok());
-        assert!(ReplispParser::parse(Rule::number, "-01.50").is_ok());
-        assert!(ReplispParser::parse(Rule::number, "+01.50").is_ok());
+    fn it_should_parse_integers() {
+        assert!(ReplispParser::parse(Rule::integer, "0").is_ok());
+        assert!(ReplispParser::parse(Rule::integer, "1").is_ok());
+        assert!(ReplispParser::parse(Rule::integer, "1234").is_ok());
+        assert!(ReplispParser::parse(Rule::integer, "+100").is_ok());
+        assert!(ReplispParser::parse(Rule::integer, "-100").is_ok());
+    }
 
-        assert!(ReplispParser::parse(Rule::number, ".50").is_err());
-        assert!(ReplispParser::parse(Rule::number, "-.50").is_err());
+    #[test]
+    fn it_should_parse_decimals() {
+        assert!(ReplispParser::parse(Rule::decimal, "1.5").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "-1.5").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "+1.5").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "-01.5").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "-01.50").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, ".50").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "-.50").is_ok());
+        assert!(ReplispParser::parse(Rule::decimal, "+.50").is_ok());
     }
 
     #[test]
