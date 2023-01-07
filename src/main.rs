@@ -34,14 +34,16 @@ fn main() {
 }
 
 fn repl() {
+    println!("Welcome to Replisp!");
+    println!("Type an expression to evaluate it, or type :q to exit.");
     loop {
-        let input = prompt("> ");
+        let input = prompt("(★‿★)> ");
 
         if input == ":q" {
             break;
         }
 
-        match ReplispParser::parse(Rule::expr, &input) {
+        match ReplispParser::parse(Rule::program, &input) {
             Ok(ast) => {
                 println!("{:?}", ast);
             }
