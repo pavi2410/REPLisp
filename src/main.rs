@@ -1,9 +1,17 @@
 extern crate core;
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
 
 use std::collections::vec_deque::VecDeque;
 use std::io::stdin;
 use std::io::stdout;
 use std::io::Write;
+
+use clap::Parser as ClapParser;
+use pest::error::Error;
+use pest::iterators::Pairs;
+use pest::Parser as PestParser;
 
 use lexer::Token;
 
@@ -11,24 +19,28 @@ mod lexer;
 mod parser;
 mod eval;
 
-/*
-   GRAMMAR
+#[derive(ClapParser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    filepath: Option<String>,
+}
 
-   number : /-?[0-9]+/
-   symbol : /[a-zA-Z0-9_+\-*\/\\=<>!&]+/
-   string : '"' (\\.|[^\"])* '"'
-   comment : ';' [^\r\n]*
-   sexpr : '(' <expr>* ')'
-   qexpr : '{' <expr>* '}'
-   expr : <number> | <symbol> | <string>
-        | <comment> | <sexpr> | <qexpr>
-   lisp : <expr>*
-*/
+#[derive(Parser)]
+#[grammar = "replisp_grammar.pest"] // relative to src
+struct ReplispParser;
 
 fn main() {
-    println!("REPLisp v2.0");
-    println!("Type :q to quit");
+    let args = Cli::parse();
 
+    if let Some(filepath) = args.filepath {
+        let contents = std::fs::read_to_string(filepath).unwrap();
+        ReplispParser::parse(Rule::program, &contents).unwrap();
+    } else {
+        repl();
+    }
+}
+
+fn repl() {
     loop {
         let input = prompt("> ");
 
@@ -36,16 +48,14 @@ fn main() {
             break;
         }
 
-        let mut tokens = lexer::lex(input);
-
-        println!("tokens -> {:?}", tokens);
-
-        let ast = parser::parse(&mut VecDeque::from(tokens));
-
-        println!("ast -> {:?}", ast);
-
-        // let output = eval::eval(ast);
-        // println!("{:?}", output);
+        match ReplispParser::parse(Rule::expr, &input) {
+            Ok(ast) => {
+                println!("{:?}", ast);
+            }
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
     }
 }
 
