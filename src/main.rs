@@ -8,9 +8,17 @@ use std::io::stdout;
 use std::io::Write;
 
 use clap::Parser as ClapParser;
-use pest::Parser as PestParser;
+use error::ReplispResult;
+use lval::Lval;
+use parse::eval_str;
+use crate::lenv::Lenv;
 
 mod test_parser;
+mod eval;
+mod lval;
+mod lenv;
+mod error;
+mod parse;
 
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
@@ -18,39 +26,36 @@ struct Cli {
     filepath: Option<String>,
 }
 
-#[derive(Parser)]
-#[grammar = "replisp_grammar.pest"] // relative to src
-struct ReplispParser;
+
 
 fn main() {
     let args = Cli::parse();
 
+    let mut global_env = Lenv::new(None, None);
+
     if let Some(filepath) = args.filepath {
-        let contents = std::fs::read_to_string(filepath).unwrap();
-        ReplispParser::parse(Rule::program, &contents).unwrap();
+        let source = std::fs::read_to_string(filepath).unwrap();
+        print_eval_result(eval_str(&mut global_env, source.as_str()));
     } else {
-        repl();
+        repl(&mut global_env);
     }
 }
 
-fn repl() {
+
+
+fn repl(env: &mut Lenv) {
     println!("Welcome to Replisp!");
     println!("Type an expression to evaluate it, or type :q to exit.");
+
+
     loop {
-        let input = prompt("(★‿★)> ");
+        let input = prompt("[^_^] ");
 
         if input == ":q" {
             break;
         }
 
-        match ReplispParser::parse(Rule::program, &input) {
-            Ok(ast) => {
-                println!("{:?}", ast);
-            }
-            Err(e) => {
-                println!("{:?}", e);
-            }
-        }
+        print_eval_result(eval_str(env, input.as_str()));
     }
 }
 
@@ -63,4 +68,11 @@ fn prompt(name: &str) -> String {
         .expect("Error: Could not read a line");
 
     line.trim().to_string()
+}
+
+fn print_eval_result(v: ReplispResult<Box<Lval>>) {
+	match v {
+		Ok(res) => println!("{res}"),
+		Err(e) => eprintln!("Error: {e:?}"),
+	}
 }
