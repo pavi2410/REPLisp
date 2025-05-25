@@ -1,7 +1,7 @@
 use crate::{
     error::{Error, ReplispResult},
     eval::register_builtins,
-    lval::{add, qexpr, sym, Lval},
+    lval::Lval,
 };
 use std::{collections::HashMap, fmt};
 
@@ -42,15 +42,6 @@ impl<'a> Lenv<'a> {
         }
     }
 
-    /// Returns an Lval containing Symbols with each k,v pair in the local env
-    pub fn list_all(&self) -> ReplispResult<Box<Lval>> {
-        let mut ret = qexpr();
-        for (k, v) in &self.lookup {
-            add(&mut ret, &sym(&format!("{k}:{v}")))?;
-        }
-        Ok(ret)
-    }
-
     /// Put a value into the Lenv.
     ///
     /// * `key` - The key to use
@@ -61,12 +52,12 @@ impl<'a> Lenv<'a> {
 }
 
 impl<'a> fmt::Display for Lenv<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let parent_str = if self.parent.is_some() {
-			"Child"
-		} else {
-			"Root"
-		};
-		write!(f, "{} vals in env | {}", self.lookup.len(), parent_str)
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let parent_str = if self.parent.is_some() {
+            "Child"
+        } else {
+            "Root"
+        };
+        write!(f, "{} vals in env | {}", self.lookup.len(), parent_str)
+    }
 }

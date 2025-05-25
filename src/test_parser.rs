@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::parser::{lexer, parser, parse, Token};
     use crate::lval::Lval;
+    use crate::parser::{lexer, parse};
     use chumsky::prelude::*;
 
     #[test]
@@ -19,10 +19,10 @@ mod tests {
     fn test_parse_function() {
         // Test the parse function directly
         let result = parse("(+ 1 2)").unwrap();
-        
+
         if let Lval::Sexpr(children) = *result {
             assert_eq!(children.len(), 3);
-            if let Lval::Sym(s) = *children[0] {
+            if let Lval::Sym(s) = children[0].as_ref() {
                 assert_eq!(s, "+");
             } else {
                 panic!("Expected symbol, got {:?}", children[0]);
@@ -36,14 +36,14 @@ mod tests {
     fn test_nested_expression() {
         // Test nested expressions
         let result = parse("(+ 1 (* 2 3))").unwrap();
-        
+
         if let Lval::Sexpr(children) = *result {
             assert_eq!(children.len(), 3);
-            
+
             // Check the nested expression
-            if let Lval::Sexpr(nested) = *children[2] {
+            if let Lval::Sexpr(nested) = children[2].as_ref() {
                 assert_eq!(nested.len(), 3);
-                if let Lval::Sym(s) = *nested[0] {
+                if let Lval::Sym(s) = nested[0].as_ref() {
                     assert_eq!(s, "*");
                 } else {
                     panic!("Expected symbol, got {:?}", nested[0]);
@@ -60,10 +60,10 @@ mod tests {
     fn test_qexpr() {
         // Test Q-expressions
         let result = parse("{1 2 3}").unwrap();
-        
+
         if let Lval::Qexpr(children) = *result {
             assert_eq!(children.len(), 3);
-            
+
             for (i, child) in children.iter().enumerate() {
                 if let Lval::Num(n) = **child {
                     assert_eq!(n, (i + 1) as i64);

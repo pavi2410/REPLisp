@@ -1,34 +1,31 @@
+use chumsky::error::Simple;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use thiserror::Error;
-use chumsky::error::Simple;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Division by zero")]
     DivideByZero,
-    
+
     #[error("Empty list")]
     EmptyList,
-    
-    #[error("Function format error")]
-    FunctionFormat,
-    
+
     #[error("No children in expression")]
     NoChildren,
-    
+
     #[error("Not a number")]
     NotANumber,
-    
+
     #[error("Expected {0} arguments, got {1}")]
     NumArguments(usize, usize),
-    
+
     #[error("Parse error: {0}")]
     Parse(String),
-    
+
     #[error("Expected {0}, got {1}")]
     WrongType(String, String),
-    
+
     #[error("Unknown function: {0}")]
     UnknownFunction(String),
 }

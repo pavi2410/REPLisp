@@ -1,17 +1,8 @@
 use chumsky::prelude::*;
 use std::fmt;
 
-use crate::lval::{Lval, sexpr};
 use crate::error::{Error, ReplispResult};
-
-// Helper functions that return Lval instead of Box<Lval>
-fn num(n: i64) -> ReplispResult<Lval> {
-    Ok(Lval::Num(n))
-}
-
-fn sym(s: &str) -> ReplispResult<Lval> {
-    Ok(Lval::Sym(s.to_string()))
-}
+use crate::lval::{sexpr, Lval};
 
 // Create an empty S-expression
 fn sexpr_val() -> Lval {
@@ -57,27 +48,22 @@ pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
         .map(Token::Symbol);
 
     // Numbers
-    let number = text::int(10)
-        .map(|s: String| Token::Number(s.parse().unwrap()));
+    let number = text::int(10).map(|s: String| Token::Number(s.parse().unwrap()));
 
     // Strings with escape sequences
-    let escape = just('\\')
-        .ignore_then(choice((
-            just('\"').to('\"'),
-            just('\\').to('\\'),
-            just('n').to('\n'),
-            just('r').to('\r'),
-            just('t').to('\t'),
-        )));
+    let escape = just('\\').ignore_then(choice((
+        just('\"').to('\"'),
+        just('\\').to('\\'),
+        just('n').to('\n'),
+        just('r').to('\r'),
+        just('t').to('\t'),
+    )));
 
     let string = just('\"')
         .ignore_then(
-            choice((
-                escape,
-                filter(|c| *c != '\"' && *c != '\\')
-            ))
-            .repeated()
-            .collect::<String>()
+            choice((escape, filter(|c| *c != '\"' && *c != '\\')))
+                .repeated()
+                .collect::<String>(),
         )
         .then_ignore(just('\"'))
         .map(Token::String);
@@ -92,15 +78,7 @@ pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     let comment = just('#').then(take_until(just('\n'))).padded();
 
     // Combine all token parsers
-    let token = choice((
-        lparen,
-        rparen,
-        lbrace,
-        rbrace,
-        string,
-        number,
-        symbol,
-    ));
+    let token = choice((lparen, rparen, lbrace, rbrace, string, number, symbol));
 
     // Whitespace and comments are ignored
     let tokens = token
@@ -121,61 +99,51 @@ pub fn parser() -> impl Parser<Token, Lval, Error = Simple<Token>> {
             Token::String(s) => Lval::Str(s.clone()), // Use Str variant for strings
         };
 
-        let sexpr_inner = expr.clone()
-            .repeated()
-            .collect::<Vec<_>>()
-            .map(|exprs| {
-                let mut s = sexpr_val();
-                if let Lval::Sexpr(ref mut cells) = s {
-                    for e in exprs {
-                        cells.push(Box::new(e));
-                    }
+        let sexpr_inner = expr.clone().repeated().collect::<Vec<_>>().map(|exprs| {
+            let mut s = sexpr_val();
+            if let Lval::Sexpr(ref mut cells) = s {
+                for e in exprs {
+                    cells.push(Box::new(e));
                 }
-                s
-            });
+            }
+            s
+        });
 
-        let qexpr_inner = expr.clone()
-            .repeated()
-            .collect::<Vec<_>>()
-            .map(|exprs| {
-                let mut q = qexpr_val();
-                if let Lval::Qexpr(ref mut cells) = q {
-                    for e in exprs {
-                        cells.push(Box::new(e));
-                    }
+        let qexpr_inner = expr.clone().repeated().collect::<Vec<_>>().map(|exprs| {
+            let mut q = qexpr_val();
+            if let Lval::Qexpr(ref mut cells) = q {
+                for e in exprs {
+                    cells.push(Box::new(e));
                 }
-                q
-            });
+            }
+            q
+        });
 
-        let s_expression = sexpr_inner
-            .delimited_by(just(Token::LParen), just(Token::RParen));
+        let s_expression = sexpr_inner.delimited_by(just(Token::LParen), just(Token::RParen));
 
-        let q_expression = qexpr_inner
-            .delimited_by(just(Token::LBrace), just(Token::RBrace));
+        let q_expression = qexpr_inner.delimited_by(just(Token::LBrace), just(Token::RBrace));
 
-        choice((
-            atom,
-            s_expression,
-            q_expression,
-        ))
+        choice((atom, s_expression, q_expression))
     })
 }
 
 /// Parse a string of REPLisp code into an Lval
 pub fn parse(input: &str) -> ReplispResult<Box<Lval>> {
     // First, tokenize the input
-    let tokens = lexer().parse(input)
+    let tokens = lexer()
+        .parse(input)
         .map_err(|e| Error::Parse(format!("Lexer error: {:?}", e)))?;
-    
+
     // If there are no tokens, return an empty S-expression
     if tokens.is_empty() {
         return Ok(sexpr());
     }
-    
+
     // Then parse the tokens into an Lval
-    let result = parser().parse(tokens.clone())
+    let result = parser()
+        .parse(tokens.clone())
         .map_err(|e| Error::Parse(format!("Parser error: {:?}", e)))?;
-    
+
     // Convert Lval to Box<Lval>
     Ok(Box::new(result))
 }

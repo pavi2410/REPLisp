@@ -24,11 +24,10 @@ pub enum Func {
 pub enum Lval {
     Num(i64),
     Sym(String),
-    Str(String),  // Added string literal variant
+    Str(String), // Added string literal variant
     Sexpr(LvalChildren),
     Qexpr(LvalChildren),
     Fun(Func),
-    Program(LvalChildren),
 }
 
 impl Lval {
@@ -42,12 +41,15 @@ impl Lval {
         match self {
             Lval::Sym(s) => Ok(s.to_string()),
             Lval::Str(s) => Ok(s.to_string()),
-            _ => Err(Error::WrongType("string or symbol".to_string(), format!("{self}"))),
+            _ => Err(Error::WrongType(
+                "string or symbol".to_string(),
+                format!("{self}"),
+            )),
         }
     }
     pub fn len(&self) -> ReplispResult<usize> {
         match self {
-            Lval::Sexpr(children) | Lval::Qexpr(children) | Lval::Program(children) => {
+            Lval::Sexpr(children) | Lval::Qexpr(children) => {
                 Ok(children.len())
             }
             _ => Err(Error::NoChildren),
@@ -67,7 +69,6 @@ impl fmt::Display for Lval {
                 Func::Builtin(name, _) => write!(f, "<builtin {}>", name),
                 Func::Lambda(_, formals, body) => write!(f, "(\\ {formals} {body})"),
             },
-            Lval::Program(_) => write!(f, "<program>"),
         }
     }
 }
@@ -87,10 +88,6 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // Each allocates a brand new boxed Lval
 // The recursive types start empty
 
-pub fn blispr() -> Box<Lval> {
-    Box::new(Lval::Program(Vec::new()))
-}
-
 pub fn builtin(f: LBuiltin, name: &str) -> Box<Lval> {
     Box::new(Lval::Fun(Func::Builtin(name.to_string(), f)))
 }
@@ -101,10 +98,6 @@ pub fn lambda(env: HashMap<String, Box<Lval>>, formals: Box<Lval>, body: Box<Lva
 
 pub fn num(n: i64) -> Box<Lval> {
     Box::new(Lval::Num(n))
-}
-
-pub fn sym(s: &str) -> Box<Lval> {
-    Box::new(Lval::Sym(s.into()))
 }
 
 pub fn sexpr() -> Box<Lval> {
@@ -120,9 +113,7 @@ pub fn qexpr() -> Box<Lval> {
 // Add lval x to lval::sexpr or lval::qexpr v
 pub fn add(v: &mut Lval, x: &Lval) -> ReplispResult<()> {
     match *v {
-        Lval::Sexpr(ref mut children)
-        | Lval::Qexpr(ref mut children)
-        | Lval::Program(ref mut children) => {
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             children.push(Box::new(x.clone()));
         }
         _ => return Err(Error::NoChildren),
@@ -133,9 +124,7 @@ pub fn add(v: &mut Lval, x: &Lval) -> ReplispResult<()> {
 // Extract single element of sexpr at index i
 pub fn pop(v: &mut Lval, i: usize) -> ReplispResult<Box<Lval>> {
     match *v {
-        Lval::Sexpr(ref mut children)
-        | Lval::Qexpr(ref mut children)
-        | Lval::Program(ref mut children) => {
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             let ret = children[i].clone();
             children.remove(i);
             Ok(ret)
