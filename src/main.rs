@@ -1,24 +1,22 @@
-extern crate core;
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
-use std::io::stdin;
-use std::io::stdout;
-use std::io::Write;
+use std::path::Path;
+use std::fs;
 
 use clap::Parser as ClapParser;
+use rustyline::{DefaultEditor, Result as RustylineResult};
+
 use error::ReplispResult;
 use lval::Lval;
-use parse::eval_str;
+use parser::eval_str;
 use crate::lenv::Lenv;
 
-mod test_parser;
-mod eval;
 mod lval;
 mod lenv;
+mod eval;
 mod error;
-mod parse;
+mod test_parser;
+mod parser;
+
+
 
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
@@ -28,46 +26,75 @@ struct Cli {
 
 
 
-fn main() {
+fn main() -> RustylineResult<()> {
     let args = Cli::parse();
 
     let mut global_env = Lenv::new(None, None);
 
     if let Some(filepath) = args.filepath {
-        let source = std::fs::read_to_string(filepath).unwrap();
+        // Run a file
+        let path = Path::new(&filepath);
+        if !path.exists() {
+            eprintln!("Error: File '{}' does not exist", filepath);
+            std::process::exit(1);
+        }
+        
+        let source = fs::read_to_string(path)
+            .expect("Error reading file");
+            
         print_eval_result(eval_str(&mut global_env, source.as_str()));
     } else {
-        repl(&mut global_env);
+        // Start REPL
+        repl(&mut global_env)?;
     }
+    
+    Ok(())
 }
 
-
-
-fn repl(env: &mut Lenv) {
-    println!("Welcome to Replisp!");
+/// Run the REPLisp REPL (Read-Eval-Print Loop)
+fn repl(env: &mut Lenv) -> RustylineResult<()> {
+    println!("Welcome to REPLisp!");
     println!("Type an expression to evaluate it, or type :q to exit.");
 
+    // Create a rustyline editor for better line editing experience
+    let mut rl = DefaultEditor::new()?;
+    
+    // Load history if it exists
+    let history_path = Path::new("history.txt");
+    if history_path.exists() {
+        let _ = rl.load_history(history_path);
+    }
 
     loop {
-        let input = prompt("[^_^] ");
-
-        if input == ":q" {
-            break;
+        let readline = rl.readline("[^_^] ");
+        match readline {
+            Ok(line) => {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                
+                if line == ":q" {
+                    println!("Goodbye!");
+                    break;
+                }
+                
+                // Add to history
+                rl.add_history_entry(line.as_str())?;
+                
+                // Evaluate the input
+                print_eval_result(eval_str(env, line.as_str()));
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
-
-        print_eval_result(eval_str(env, input.as_str()));
     }
-}
-
-fn prompt(name: &str) -> String {
-    let mut line = String::new();
-    print!("{}", name);
-    stdout().flush().unwrap();
-    stdin()
-        .read_line(&mut line)
-        .expect("Error: Could not read a line");
-
-    line.trim().to_string()
+    
+    // Save history
+    rl.save_history(history_path)?;
+    
+    Ok(())
 }
 
 fn print_eval_result(v: ReplispResult<Box<Lval>>) {

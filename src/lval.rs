@@ -24,6 +24,7 @@ pub enum Func {
 pub enum Lval {
     Num(i64),
     Sym(String),
+    Str(String),  // Added string literal variant
     Sexpr(LvalChildren),
     Qexpr(LvalChildren),
     Fun(Func),
@@ -40,7 +41,8 @@ impl Lval {
     pub fn as_string(&self) -> ReplispResult<String> {
         match self {
             Lval::Sym(s) => Ok(s.to_string()),
-            _ => Err(Error::WrongType("symbol".to_string(), format!("{self}"))),
+            Lval::Str(s) => Ok(s.to_string()),
+            _ => Err(Error::WrongType("string or symbol".to_string(), format!("{self}"))),
         }
     }
     pub fn len(&self) -> ReplispResult<usize> {
@@ -58,6 +60,7 @@ impl fmt::Display for Lval {
         match self {
             Lval::Num(n) => write!(f, "{n}"),
             Lval::Sym(s) => write!(f, "{s}"),
+            Lval::Str(s) => write!(f, "\"{s}\""),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
             Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
             Lval::Fun(func) => match func {

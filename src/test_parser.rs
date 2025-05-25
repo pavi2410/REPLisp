@@ -1,56 +1,78 @@
 #[cfg(test)]
 mod tests {
-    use pest::Parser;
-    use crate::{ReplispParser, Rule};
+    use crate::parser::{lexer, parser, parse, Token};
+    use crate::lval::Lval;
+    use chumsky::prelude::*;
 
     #[test]
-    fn it_should_parse_integers() {
-        assert!(ReplispParser::parse(Rule::integer, "0").is_ok());
-        assert!(ReplispParser::parse(Rule::integer, "1").is_ok());
-        assert!(ReplispParser::parse(Rule::integer, "1234").is_ok());
-        assert!(ReplispParser::parse(Rule::integer, "+100").is_ok());
-        assert!(ReplispParser::parse(Rule::integer, "-100").is_ok());
+    fn test_lexer() {
+        let tokens = lexer().parse("(+ 1 2)").unwrap();
+        assert_eq!(tokens.len(), 5);
+        assert_eq!(format!("{}", tokens[0]), "(");
+        assert_eq!(format!("{}", tokens[1]), "+");
+        assert_eq!(format!("{}", tokens[2]), "1");
+        assert_eq!(format!("{}", tokens[3]), "2");
+        assert_eq!(format!("{}", tokens[4]), ")");
     }
 
     #[test]
-    fn it_should_parse_decimals() {
-        assert!(ReplispParser::parse(Rule::decimal, "1.5").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "-1.5").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "+1.5").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "-01.5").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "-01.50").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, ".50").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "-.50").is_ok());
-        assert!(ReplispParser::parse(Rule::decimal, "+.50").is_ok());
+    fn test_parse_function() {
+        // Test the parse function directly
+        let result = parse("(+ 1 2)").unwrap();
+        
+        if let Lval::Sexpr(children) = *result {
+            assert_eq!(children.len(), 3);
+            if let Lval::Sym(s) = *children[0] {
+                assert_eq!(s, "+");
+            } else {
+                panic!("Expected symbol, got {:?}", children[0]);
+            }
+        } else {
+            panic!("Expected sexpr, got {:?}", result);
+        }
     }
 
     #[test]
-    fn it_should_parse_booleans() {
-        assert!(ReplispParser::parse(Rule::boolean, "true").is_ok());
-        assert!(ReplispParser::parse(Rule::boolean, "false").is_ok());
+    fn test_nested_expression() {
+        // Test nested expressions
+        let result = parse("(+ 1 (* 2 3))").unwrap();
+        
+        if let Lval::Sexpr(children) = *result {
+            assert_eq!(children.len(), 3);
+            
+            // Check the nested expression
+            if let Lval::Sexpr(nested) = *children[2] {
+                assert_eq!(nested.len(), 3);
+                if let Lval::Sym(s) = *nested[0] {
+                    assert_eq!(s, "*");
+                } else {
+                    panic!("Expected symbol, got {:?}", nested[0]);
+                }
+            } else {
+                panic!("Expected sexpr, got {:?}", children[2]);
+            }
+        } else {
+            panic!("Expected sexpr, got {:?}", result);
+        }
     }
 
     #[test]
-    fn it_should_parse_strings() {
-        assert!(ReplispParser::parse(Rule::string, r#""""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#""Replisp""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#""🫡""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#""C:\Windows\Program Files""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#""\\""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r##""https://pavi2410.me/?q=query#fragment""##).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#""hello\nworld""#).is_ok());
-        assert!(ReplispParser::parse(Rule::string, r#"""qouted text"""#).is_ok());
-    }
-
-    #[test]
-    fn it_should_parse_idents() {
-        assert!(ReplispParser::parse(Rule::ident, "a").is_ok());
-        assert!(ReplispParser::parse(Rule::ident, "apple").is_ok());
-        assert!(ReplispParser::parse(Rule::ident, "apple-juice").is_ok());
-        assert!(ReplispParser::parse(Rule::ident, "apple_juice").is_ok());
-        assert!(ReplispParser::parse(Rule::ident, "apple_juice_123").is_ok());
-        assert!(ReplispParser::parse(Rule::ident, "BananaPie").is_ok());
-
-        assert!(ReplispParser::parse(Rule::ident, "1var").is_err());
+    fn test_qexpr() {
+        // Test Q-expressions
+        let result = parse("{1 2 3}").unwrap();
+        
+        if let Lval::Qexpr(children) = *result {
+            assert_eq!(children.len(), 3);
+            
+            for (i, child) in children.iter().enumerate() {
+                if let Lval::Num(n) = **child {
+                    assert_eq!(n, (i + 1) as i64);
+                } else {
+                    panic!("Expected number, got {:?}", child);
+                }
+            }
+        } else {
+            panic!("Expected qexpr, got {:?}", result);
+        }
     }
 }

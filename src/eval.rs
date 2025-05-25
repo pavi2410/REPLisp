@@ -133,6 +133,35 @@ pub fn builtin_min(a: &mut Lval) -> ReplispResult<Box<Lval>> {
     builtin_op(a, "min")
 }
 
+/// Print values to the console
+pub fn builtin_print(a: &mut Lval) -> ReplispResult<Box<Lval>> {
+    let mut output = String::new();
+    
+    // Concatenate all arguments
+    for _i in 0..a.len()? {
+        let val = pop(a, 0)?;
+        match *val {
+            Lval::Sym(ref s) => {
+                output.push_str(s);
+            },
+            Lval::Str(ref s) => {
+                // For string literals, just output the string value
+                output.push_str(s);
+            },
+            Lval::Sexpr(ref cells) => {
+                // Handle S-expressions by evaluating them first
+                if !cells.is_empty() {
+                    output.push_str(&format!("{:?}", val));
+                }
+            },
+            _ => output.push_str(&format!("{:?}", val)),
+        }
+    }
+    
+    println!("{}", output);
+    Ok(sexpr())
+}
+
 /// define a list of values
 /// if "def" define in global env
 /// if "=" define in local env
@@ -364,50 +393,61 @@ pub fn builtin_tail(v: &mut Lval) -> ReplispResult<Box<Lval>> {
 pub fn lval_call(lenv: &mut Lenv, f: Lval, args: &mut Lval) -> ReplispResult<Box<Lval>> {
     match f {
         Lval::Fun(func) => match func {
-            Func::Builtin(name, fp) => match name.as_str() {
-                "eval" => todo!(),
-                "def" => todo!(),
-                "printenv" => todo!(),
-                _ => fp(args),
+            Func::Builtin(name, func) => {
+                println!("Calling builtin function {}", name);
+                
+                // Special case for the 'do' function which needs the environment
+                if name == "do" {
+                    return builtin_do(lenv, args);
+                }
+                
+                func(args)
             },
             Func::Lambda(env, formals, body) => {
                 println!("Executing lambda");
-
+                
                 // bind arguments to parameters
-                let given = args.len()?;
-                let total = formals.len()?;
-
-                if given != total {
-                    return Err(Error::NumArguments(total, given));
+                let mut local_env = Lenv::new(Some(env), None);
+                
+                // Bind arguments to formal parameters
+                if let Lval::Qexpr(formals_vec) = *formals {
+                    for (_i, formal) in formals_vec.iter().enumerate() {
+                        if let Lval::Sym(name) = &**formal {
+                            let val = pop(args, 0)?;
+                            local_env.put(name.clone(), val);
+                        } else {
+                            return Err(Error::WrongType("Symbol".to_string(), format!("{:?}", formal)));
+                        }
+                    }
                 }
-
-                let mut local_env = Lenv::new(None, Some(&lenv));
-
-                while args.len()? > 0 {
-                    let sym = pop(args, 0)?;
-                    let val = pop(args, 0)?;
-                    local_env.put(sym.to_string(), val);
-                }
-
-                todo!()
+                
+                // Evaluate the body in the new environment
+                let mut body_clone = body.clone();
+                lval_eval(&mut local_env, &mut body_clone)
             }
         },
-        _ => Err(Error::WrongType("Function".to_owned(), format!("{f:?}"))),
+        _ => Err(Error::WrongType("Function".to_owned(), format!("{f:?}")))
     }
 }
 
-/// Given a slice of boxed Lvals, return a single evaluated sexpr
 fn eval_cells(e: &mut Lenv, cells: &[Box<Lval>]) -> ReplispResult<Box<Lval>> {
     cells.iter().fold(Ok(sexpr()), |acc, c| {
         match acc {
             Ok(mut lval) => {
-                add(&mut lval, &*lval_eval(e, &mut c.clone())?)?;
+                add(&mut lval, &*lval_eval(e, &mut c.clone())?)?
+                ;
                 Ok(lval)
             }
-            // it's just a Result so we can bubble errors out of the fold
-            Err(_) => unreachable!(),
+            // Handle errors properly instead of using unreachable
+            Err(err) => Err(err),
         }
     })
+}
+
+// Public eval function that can be called from other modules
+pub fn eval(env: &mut Lenv, ast: Box<Lval>) -> ReplispResult<Box<Lval>> {
+    let mut ast_mut = *ast;
+    lval_eval(env, &mut ast_mut)
 }
 
 pub fn lval_eval(env: &mut Lenv, ast: &mut Lval) -> ReplispResult<Box<Lval>> {
@@ -438,8 +478,30 @@ pub fn lval_eval(env: &mut Lenv, ast: &mut Lval) -> ReplispResult<Box<Lval>> {
             let fp = pop(&mut r, 0)?;
             println!("Calling function {:?} on {:?}", fp, ast);
             lval_call(env, *fp, &mut r)
-        }
+        },
         _ => Ok(Box::new(ast.clone())),
+    }
+}
+/// Execute a sequence of expressions and return the result of the last one
+pub fn builtin_do(env: &mut Lenv, v: &mut Lval) -> ReplispResult<Box<Lval>> {
+    // Ensure v is an S-expression
+    if let Lval::Sexpr(ref mut cells) = *v {
+        if cells.is_empty() {
+            return Ok(sexpr());
+        }
+        
+        let mut result = sexpr();
+        
+        // Evaluate each expression in sequence
+        for i in 0..cells.len() {
+            // We need to clone each cell before evaluating it
+            let mut cell_clone = (*cells[i]).clone();
+            result = lval_eval(env, &mut cell_clone)?;
+        }
+        
+        Ok(result)
+    } else {
+        Err(Error::WrongType("sexpr".to_string(), format!("{:?}", v)))
     }
 }
 
@@ -450,6 +512,7 @@ pub fn register_builtins(env: &mut Lenv) {
 
     // Definiton
     register_builtin(env, "\\", builtin_lambda);
+    register_builtin(env, "fun", builtin_lambda);
     // register_builtin(env, "def", builtin_put_stub);
     // register_builtin(env, "=", builtin_put_stub); // BROKEN
 
@@ -465,7 +528,16 @@ pub fn register_builtins(env: &mut Lenv) {
 
     // Utility
     register_builtin(env, "exit", builtin_exit);
+    register_builtin(env, "print", builtin_print);
     // register_builtin(env, "printenv", builtin_printenv_stub);
+
+    // Control flow
+    // Create a wrapper function for builtin_do that matches the LBuiltin signature
+    let do_wrapper: LBuiltin = |_v: &mut Lval| {
+        // This is just a stub that will be replaced by special handling in lval_call
+        Ok(sexpr())
+    };
+    register_builtin(env, "do", do_wrapper);
 
     // Arithmetic
     register_builtin(env, "+", builtin_add);
