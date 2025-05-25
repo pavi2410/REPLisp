@@ -1,7 +1,16 @@
-(fun {areacircle rad} { do
-   (print "Radius:\t" rad)
-   (print "Area:\t" (* rad rad))
-})
-
-(areacircle 10)
-(areacircle 12)
+(do
+  (print "Simple calculator example")
+  
+  (print "Basic arithmetic:")
+  (print "2 + 3 =")
+  (print (+ 2 3))
+  
+  (print "2 * 3 =")
+  (print (* 2 3))
+  
+  (print "10 / 2 =")
+  (print (/ 10 2))
+  
+  (print "10 - 2 =")
+  (print (- 10 2))
+)

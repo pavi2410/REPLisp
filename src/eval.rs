@@ -40,41 +40,51 @@ fn builtin_op(v: &mut Lval, func: &str) -> ReplispResult<Box<Lval>> {
         child_count -= 1;
         match func {
             "+" | "add" => {
-                println!("builtin_op: Add {} and {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Add {} and {}", x, y);
+                }
                 apply_binop!(add, x, y);
             }
             "-" | "sub" => {
-                println!("builtin_op: Subtract {} and {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Subtract {} and {}", x, y);
+                }
                 apply_binop!(sub, x, y);
             }
             "*" | "mul" => {
-                println!("builtin_op: Multiply {} and {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Multiply {} and {}", x, y);
+                }
                 apply_binop!(mul, x, y);
             }
             "/" | "div" => {
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Divide {} by {}", x, y);
+                }
                 if y.as_num()? == 0 {
-                    println!("builtin_op: Failed divide {} by {}", x, y);
                     return Err(Error::DivideByZero);
                 };
-                println!("builtin_op: Divide {} by {}", x, y);
                 apply_binop!(div, x, y);
             }
             "%" | "rem" => {
-                println!("builtin_op: {} % {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: {} % {}", x, y);
+                }
                 apply_binop!(rem, x, y);
             }
             "^" | "pow" => {
-                println!("builtin_op: Raise {} to the {} power", x, y);
-                let y_num = y.as_num()?;
-                let x_num = x.as_num()?;
-                let mut coll = 1;
-                for _ in 0..y_num {
-                    coll *= x_num;
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Raise {} to the {} power", x, y);
                 }
-                x = num(coll);
+                let x_num = x.as_num()?;
+                let y_num = y.as_num()?;
+                let result = x_num.pow(y_num as u32);
+                x = Box::new(Lval::Num(result));
             }
             "min" => {
-                println!("builtin_op: Min {} and {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Min {} and {}", x, y);
+                }
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num < y_num {
@@ -84,7 +94,9 @@ fn builtin_op(v: &mut Lval, func: &str) -> ReplispResult<Box<Lval>> {
                 };
             }
             "max" => {
-                println!("builtin_op: Max {} and {}", x, y);
+                if crate::debug::is_debug_enabled() {
+                    println!("builtin_op: Max {} and {}", x, y);
+                }
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num > y_num {
@@ -133,6 +145,58 @@ pub fn builtin_min(a: &mut Lval) -> ReplispResult<Box<Lval>> {
     builtin_op(a, "min")
 }
 
+/// Stub function for builtins that are handled specially in lval_call
+pub fn builtin_stub(_a: &mut Lval) -> ReplispResult<Box<Lval>> {
+    // This function should never be called directly
+    Err(Error::Message(
+        "This function should be handled specially in lval_call".to_string(),
+    ))
+}
+
+/// builtin_def defines a variable in the environment
+pub fn builtin_def(env: &mut Lenv, a: &mut Lval) -> ReplispResult<Box<Lval>> {
+    // First argument should be a Q-Expression containing only symbols
+    let symbols = pop(a, 0)?;
+
+    match *symbols {
+        Lval::Qexpr(ref symbols_cells) => {
+            // Check all elements are symbols
+            for cell in symbols_cells {
+                if let Lval::Sym(_) = **cell {
+                    // This is a symbol, which is what we want
+                } else {
+                    return Err(Error::WrongType(
+                        "Symbol".to_string(),
+                        format!("{:?}", cell),
+                    ));
+                }
+            }
+
+            // Check correct number of symbols and values
+            let sym_count = symbols_cells.len();
+            let val_count = a.len()?;
+
+            if sym_count != val_count {
+                return Err(Error::NumArguments(sym_count, val_count));
+            }
+
+            // Assign values to symbols in environment
+            for i in 0..sym_count {
+                if let Lval::Sym(ref sym) = *symbols_cells[i] {
+                    let val = pop(a, 0)?;
+                    env.put(sym.clone(), val);
+                }
+            }
+
+            Ok(sexpr())
+        }
+        _ => Err(Error::WrongType(
+            "Q-Expression".to_string(),
+            format!("{:?}", symbols),
+        )),
+    }
+}
+
 /// Print values to the console
 pub fn builtin_print(a: &mut Lval) -> ReplispResult<Box<Lval>> {
     let mut output = String::new();
@@ -148,8 +212,12 @@ pub fn builtin_print(a: &mut Lval) -> ReplispResult<Box<Lval>> {
                 // For string literals, just output the string value
                 output.push_str(s);
             }
+            Lval::Num(n) => {
+                // Format numbers with commas for readability
+                let formatted = format_number(n);
+                output.push_str(&formatted);
+            }
             Lval::Sexpr(ref cells) => {
-                // Handle S-expressions by evaluating them first
                 if !cells.is_empty() {
                     output.push_str(&format!("{:?}", val));
                 }
@@ -160,6 +228,22 @@ pub fn builtin_print(a: &mut Lval) -> ReplispResult<Box<Lval>> {
 
     println!("{}", output);
     Ok(sexpr())
+}
+
+/// Format a number with commas for readability
+fn format_number(n: i64) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    let len = s.len();
+
+    for (i, c) in s.chars().enumerate() {
+        result.push(c);
+        if (len - i - 1) % 3 == 0 && i < len - 1 {
+            result.push(',');
+        }
+    }
+
+    result
 }
 
 /// Attach a value to the front of a qexpr
@@ -326,42 +410,117 @@ pub fn builtin_tail(v: &mut Lval) -> ReplispResult<Box<Lval>> {
 }
 
 pub fn lval_call(lenv: &mut Lenv, f: Lval, args: &mut Lval) -> ReplispResult<Box<Lval>> {
+    if crate::debug::is_debug_enabled() {
+        crate::debug_print!("Calling function: {:?} with args: {:?}", f, args);
+    }
+
     match f {
         Lval::Fun(func) => match func {
             Func::Builtin(name, func) => {
-                println!("Calling builtin function {}", name);
+                if crate::debug::is_debug_enabled() {
+                    println!("Calling builtin function {}", name);
+                    crate::debug_print!("Args for {}: {:?}", name, args);
+                }
 
-                // Special case for the 'do' function which needs the environment
-                if name == "do" {
-                    return builtin_do(lenv, args);
+                // Special cases for functions that need the environment
+                match name.as_str() {
+                    "do" => return builtin_do(lenv, args),
+                    "def" | "=" => return builtin_def(lenv, args),
+                    _ => {}
                 }
 
                 func(args)
             }
             Func::Lambda(env, formals, body) => {
-                println!("Executing lambda");
+                if crate::debug::is_debug_enabled() {
+                    println!("Executing lambda");
+                    crate::debug_print!("Lambda formals: {:?}", formals);
+                    crate::debug_print!("Lambda body: {:?}", body);
+                    crate::debug_print!("Lambda args: {:?}", args);
+                }
 
-                // bind arguments to parameters
-                let mut local_env = Lenv::new(Some(env), None);
+                // Create a new environment with a parent pointer to the current environment
+                let mut local_env = Lenv::new(Some(env), Some(lenv));
+
+                // Check the number of arguments
+                let given = args.len()?;
+                let expected = match *formals {
+                    Lval::Qexpr(ref cells) => cells.len(),
+                    _ => 0,
+                };
+
+                if given != expected {
+                    if crate::debug::is_debug_enabled() {
+                        crate::debug_print!(
+                            "Lambda argument count mismatch: expected {}, got {}",
+                            expected,
+                            given
+                        );
+                    }
+                    return Err(Error::NumArguments(expected, given));
+                }
 
                 // Bind arguments to formal parameters
-                if let Lval::Qexpr(formals_vec) = *formals {
-                    for (_i, formal) in formals_vec.iter().enumerate() {
-                        if let Lval::Sym(name) = &**formal {
-                            let val = pop(args, 0)?;
-                            local_env.put(name.clone(), val);
-                        } else {
-                            return Err(Error::WrongType(
-                                "Symbol".to_string(),
-                                format!("{:?}", formal),
-                            ));
+                match *formals {
+                    Lval::Qexpr(ref cells) => {
+                        for (_i, formal) in cells.iter().enumerate() {
+                            match **formal {
+                                Lval::Sym(ref name) => {
+                                    let val = pop(args, 0)?;
+                                    if crate::debug::is_debug_enabled() {
+                                        crate::debug_print!(
+                                            "Binding parameter '{}' to value: {:?}",
+                                            name,
+                                            val
+                                        );
+                                    }
+                                    local_env.put(name.clone(), val);
+                                }
+                                _ => {
+                                    if crate::debug::is_debug_enabled() {
+                                        crate::debug_print!(
+                                            "Expected symbol in formals list, got: {:?}",
+                                            formal
+                                        );
+                                    }
+                                    return Err(Error::WrongType(
+                                        "Symbol".to_string(),
+                                        format!("{:?}", formal),
+                                    ));
+                                }
+                            }
                         }
+                    }
+                    _ => {
+                        if crate::debug::is_debug_enabled() {
+                            crate::debug_print!(
+                                "Expected Q-Expression for formals, got: {:?}",
+                                formals
+                            );
+                        }
+                        return Err(Error::WrongType(
+                            "Q-Expression".to_string(),
+                            format!("{:?}", formals),
+                        ));
                     }
                 }
 
                 // Evaluate the body in the new environment
-                let mut body_clone = body.clone();
-                lval_eval(&mut local_env, &mut body_clone)
+                if crate::debug::is_debug_enabled() {
+                    crate::debug_print!("Evaluating lambda body: {:?}", body);
+                }
+
+                // For Q-expressions, we need to convert to S-expression first to evaluate
+                let mut body_to_eval = match *body.clone() {
+                    Lval::Qexpr(cells) => Box::new(Lval::Sexpr(cells)),
+                    _ => body.clone(),
+                };
+
+                let result = lval_eval(&mut local_env, &mut body_to_eval);
+                if crate::debug::is_debug_enabled() {
+                    crate::debug_print!("Lambda result: {:?}", result);
+                }
+                result
             }
         },
         _ => Err(Error::WrongType("Function".to_owned(), format!("{f:?}"))),
@@ -383,8 +542,15 @@ fn eval_cells(e: &mut Lenv, cells: &[Box<Lval>]) -> ReplispResult<Box<Lval>> {
 
 // Public eval function that can be called from other modules
 pub fn eval(env: &mut Lenv, ast: Box<Lval>) -> ReplispResult<Box<Lval>> {
+    if crate::debug::is_debug_enabled() {
+        crate::debug_print!("Evaluating AST: {:?}", ast);
+    }
     let mut ast_mut = *ast;
-    lval_eval(env, &mut ast_mut)
+    let result = lval_eval(env, &mut ast_mut);
+    if crate::debug::is_debug_enabled() {
+        crate::debug_print!("Evaluation result: {:?}", result);
+    }
+    result
 }
 
 pub fn lval_eval(env: &mut Lenv, ast: &mut Lval) -> ReplispResult<Box<Lval>> {
@@ -407,7 +573,9 @@ pub fn lval_eval(env: &mut Lenv, ast: &mut Lval) -> ReplispResult<Box<Lval>> {
             let mut r: Box<Lval> = eval_cells(env, cells)?;
 
             let fp = pop(&mut r, 0)?;
-            println!("Calling function {:?} on {:?}", fp, ast);
+            if crate::debug::is_debug_enabled() {
+                println!("Calling function {:?} on {:?}", fp, ast);
+            }
             lval_call(env, *fp, &mut r)
         }
         _ => Ok(Box::new(ast.clone())),
@@ -444,8 +612,11 @@ pub fn register_builtins(env: &mut Lenv) {
     // Definiton
     register_builtin(env, "\\", builtin_lambda);
     register_builtin(env, "fun", builtin_lambda);
-    // register_builtin(env, "def", builtin_put_stub);
-    // register_builtin(env, "=", builtin_put_stub); // BROKEN
+
+    // The def function is handled specially in lval_call
+    // We register stub functions here just to make the symbols available
+    register_builtin(env, "def", builtin_stub);
+    register_builtin(env, "=", builtin_stub); // Alias for def
 
     // List manipulation
     register_builtin(env, "cons", builtin_cons);

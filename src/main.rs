@@ -9,6 +9,7 @@ use error::ReplispResult;
 use lval::Lval;
 use parser::eval_str;
 
+mod debug;
 mod error;
 mod eval;
 mod lenv;
@@ -19,11 +20,21 @@ mod test_parser;
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Path to a REPLisp file to execute
     filepath: Option<String>,
+
+    /// Enable debug logging
+    #[arg(short, long)]
+    debug: bool,
 }
 
 fn main() -> RustylineResult<()> {
     let args = Cli::parse();
+
+    // Set the global debug flag
+    unsafe {
+        debug::DEBUG = args.debug;
+    }
 
     let mut global_env = Lenv::new(None, None);
 
@@ -54,12 +65,6 @@ fn repl(env: &mut Lenv) -> RustylineResult<()> {
     // Create a rustyline editor for better line editing experience
     let mut rl = DefaultEditor::new()?;
 
-    // Load history if it exists
-    let history_path = Path::new("history.txt");
-    if history_path.exists() {
-        let _ = rl.load_history(history_path);
-    }
-
     loop {
         let readline = rl.readline("[^_^] ");
         match readline {
@@ -85,9 +90,6 @@ fn repl(env: &mut Lenv) -> RustylineResult<()> {
             }
         }
     }
-
-    // Save history
-    rl.save_history(history_path)?;
 
     Ok(())
 }

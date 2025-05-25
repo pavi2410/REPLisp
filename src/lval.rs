@@ -49,10 +49,12 @@ impl Lval {
     }
     pub fn len(&self) -> ReplispResult<usize> {
         match self {
-            Lval::Sexpr(children) | Lval::Qexpr(children) => {
-                Ok(children.len())
-            }
-            _ => Err(Error::NoChildren),
+            Lval::Sexpr(cells) => Ok(cells.len()),
+            Lval::Qexpr(cells) => Ok(cells.len()),
+            _ => Err(Error::WrongType(
+                "S-Expression or Q-Expression".to_string(),
+                format!("{:?}", self),
+            )),
         }
     }
 }

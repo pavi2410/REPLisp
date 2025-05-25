@@ -150,6 +150,60 @@ pub fn parse(input: &str) -> ReplispResult<Box<Lval>> {
 
 /// Parse and evaluate a string of REPLisp code
 pub fn eval_str(env: &mut crate::lenv::Lenv, source: &str) -> ReplispResult<Box<Lval>> {
-    let ast = parse(source)?;
-    crate::eval::eval(env, ast)
+    // Log the source code if debug mode is enabled
+    if crate::debug::is_debug_enabled() {
+        crate::debug_print!("Evaluating source:\n{}", source);
+    }
+
+    // Try to parse the entire source as a single expression first
+    match parse(source) {
+        Ok(ast) => {
+            if crate::debug::is_debug_enabled() {
+                crate::debug_print!("Parsed AST: {:?}", ast);
+            }
+            return crate::eval::eval(env, ast);
+        }
+        Err(e) => {
+            if crate::debug::is_debug_enabled() {
+                crate::debug_print!("Failed to parse entire source: {:?}", e);
+                crate::debug_print!("Trying to parse line by line");
+            }
+
+            // If that fails, try to evaluate each line separately
+            let mut result = crate::lval::sexpr();
+
+            // Process each line that looks like a complete expression
+            for line in source.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue; // Skip empty lines and comments
+                }
+
+                if crate::debug::is_debug_enabled() {
+                    crate::debug_print!("Parsing line: {}", trimmed);
+                }
+
+                // Only try to parse lines that look like complete expressions
+                if trimmed.starts_with('(') {
+                    match parse(trimmed) {
+                        Ok(ast) => {
+                            if crate::debug::is_debug_enabled() {
+                                crate::debug_print!("Successfully parsed line: {:?}", ast);
+                            }
+                            result = crate::eval::eval(env, ast)?;
+                        }
+                        Err(e) => {
+                            eprintln!("Error parsing: {}", trimmed);
+                            if crate::debug::is_debug_enabled() {
+                                crate::debug_print!("Parse error: {:?}", e);
+                            }
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+
+            Ok(result)
+        }
+    }
 }

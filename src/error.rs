@@ -28,6 +28,9 @@ pub enum Error {
 
     #[error("Unknown function: {0}")]
     UnknownFunction(String),
+
+    #[error("{0}")]
+    Message(String),
 }
 
 pub type ReplispResult<T> = Result<T, Error>;
