@@ -64,6 +64,10 @@ impl Environment {
         env.define("length", Value::Function(builtin_length));
         env.define("null?", Value::Function(builtin_null));
         env.define("print", Value::Function(builtin_print));
+        env.define("min", Value::Function(builtin_min));
+        env.define("max", Value::Function(builtin_max));
+        env.define("abs", Value::Function(builtin_abs));
+        env.define("mod", Value::Function(builtin_mod));
         
         env
     }
@@ -289,6 +293,81 @@ fn builtin_print(args: &[Value]) -> Result<Value, EvalError> {
     }
     println!();  // Add newline
     Ok(Value::Nil)
+}
+
+fn builtin_min(args: &[Value]) -> Result<Value, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::ArityError("min requires at least 1 argument".to_string()));
+    }
+    
+    let mut min_val = match &args[0] {
+        Value::Number(n) => *n,
+        _ => return Err(EvalError::TypeError("min requires numbers".to_string())),
+    };
+    
+    for arg in &args[1..] {
+        match arg {
+            Value::Number(n) => {
+                if *n < min_val {
+                    min_val = *n;
+                }
+            }
+            _ => return Err(EvalError::TypeError("min requires numbers".to_string())),
+        }
+    }
+    
+    Ok(Value::Number(min_val))
+}
+
+fn builtin_max(args: &[Value]) -> Result<Value, EvalError> {
+    if args.is_empty() {
+        return Err(EvalError::ArityError("max requires at least 1 argument".to_string()));
+    }
+    
+    let mut max_val = match &args[0] {
+        Value::Number(n) => *n,
+        _ => return Err(EvalError::TypeError("max requires numbers".to_string())),
+    };
+    
+    for arg in &args[1..] {
+        match arg {
+            Value::Number(n) => {
+                if *n > max_val {
+                    max_val = *n;
+                }
+            }
+            _ => return Err(EvalError::TypeError("max requires numbers".to_string())),
+        }
+    }
+    
+    Ok(Value::Number(max_val))
+}
+
+fn builtin_abs(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::ArityError("abs requires exactly 1 argument".to_string()));
+    }
+    
+    match &args[0] {
+        Value::Number(n) => Ok(Value::Number(n.abs())),
+        _ => Err(EvalError::TypeError("abs requires a number".to_string())),
+    }
+}
+
+fn builtin_mod(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::ArityError("mod requires exactly 2 arguments".to_string()));
+    }
+    
+    match (&args[0], &args[1]) {
+        (Value::Number(a), Value::Number(b)) => {
+            if *b == 0.0 {
+                return Err(EvalError::DivisionByZero);
+            }
+            Ok(Value::Number(a % b))
+        }
+        _ => Err(EvalError::TypeError("mod requires numbers".to_string())),
+    }
 }
 
 pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError> {
