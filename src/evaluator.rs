@@ -1,14 +1,32 @@
 use crate::parser::Expr;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Number(f64),
     String(String),
     Symbol(String),
     List(Vec<Value>),
     Function(fn(&[Value]) -> Result<Value, EvalError>),
+    Lambda {
+        params: Vec<String>,
+        body: Box<Expr>,
+        closure: Environment,
+    },
     Nil,
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Symbol(a), Value::Symbol(b)) => a == b,
+            (Value::List(a), Value::List(b)) => a == b,
+            (Value::Nil, Value::Nil) => true,
+            _ => false, // Functions and lambdas are not comparable
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -20,6 +38,7 @@ pub enum EvalError {
     InvalidFunction(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct Environment {
     bindings: HashMap<String, Value>,
 }
@@ -286,7 +305,17 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError>
             if elements.is_empty() {
                 Ok(Value::List(vec![]))
             } else {
-                eval_function_call(elements, env)
+                // Check for special forms
+                if let Expr::Symbol(name) = &elements[0] {
+                    match name.as_str() {
+                        "def" => eval_def(&elements[1..], env),
+                        "defn" => eval_defn(&elements[1..], env),
+                        "lambda" => eval_lambda(&elements[1..], env),
+                        _ => eval_function_call(elements, env),
+                    }
+                } else {
+                    eval_function_call(elements, env)
+                }
             }
         }
     }
@@ -306,6 +335,85 @@ fn eval_quote(expr: &Expr) -> Result<Value, EvalError> {
         }
         Expr::Quote(expr) => eval_quote(expr),
     }
+}
+
+fn eval_def(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::ArityError("def requires exactly 2 arguments".to_string()));
+    }
+    
+    let name = match &args[0] {
+        Expr::Symbol(s) => s.clone(),
+        _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string())),
+    };
+    
+    let value = eval_expr(&args[1], env)?;
+    env.define(&name, value.clone());
+    Ok(value)
+}
+
+fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    if args.len() != 3 {
+        return Err(EvalError::ArityError("defn requires exactly 3 arguments".to_string()));
+    }
+    
+    let name = match &args[0] {
+        Expr::Symbol(s) => s.clone(),
+        _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string())),
+    };
+    
+    let params = match &args[1] {
+        Expr::List(param_exprs) => {
+            let mut params = Vec::new();
+            for param_expr in param_exprs {
+                match param_expr {
+                    Expr::Symbol(s) => params.push(s.clone()),
+                    _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string())),
+                }
+            }
+            params
+        }
+        _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string())),
+    };
+    
+    let body = args[2].clone();
+    
+    let lambda = Value::Lambda {
+        params,
+        body: Box::new(body),
+        closure: env.clone(),
+    };
+    
+    env.define(&name, lambda.clone());
+    Ok(lambda)
+}
+
+fn eval_lambda(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::ArityError("lambda requires exactly 2 arguments".to_string()));
+    }
+    
+    let params = match &args[0] {
+        Expr::List(param_exprs) => {
+            let mut params = Vec::new();
+            for param_expr in param_exprs {
+                match param_expr {
+                    Expr::Symbol(s) => params.push(s.clone()),
+                    _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string())),
+                }
+            }
+            params
+        }
+        _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string())),
+    };
+    
+    let body = args[1].clone();
+    
+    Ok(Value::Lambda {
+        params,
+        body: Box::new(body),
+        closure: env.clone(),
+    })
 }
 
 fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
@@ -328,6 +436,24 @@ fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value,
     // Call function
     match func {
         Value::Function(f) => f(&args),
+        Value::Lambda { params, body, mut closure } => {
+            // Check arity
+            if args.len() != params.len() {
+                return Err(EvalError::ArityError(format!(
+                    "Function expects {} arguments, got {}",
+                    params.len(),
+                    args.len()
+                )));
+            }
+            
+            // Bind arguments to parameters in closure environment
+            for (param, arg) in params.iter().zip(args.iter()) {
+                closure.define(param, arg.clone());
+            }
+            
+            // Evaluate body in closure environment
+            eval_expr(&body, &mut closure)
+        }
         _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func))),
     }
 }
@@ -349,6 +475,16 @@ impl std::fmt::Display for Value {
                 write!(f, ")")
             }
             Value::Function(_) => write!(f, "<function>"),
+            Value::Lambda { params, .. } => {
+                write!(f, "<lambda (")?;
+                for (i, param) in params.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{}", param)?;
+                }
+                write!(f, ")>")
+            }
             Value::Nil => write!(f, "nil"),
         }
     }
