@@ -44,6 +44,7 @@ impl Environment {
         env.define("cons", Value::Function(builtin_cons));
         env.define("length", Value::Function(builtin_length));
         env.define("null?", Value::Function(builtin_null));
+        env.define("print", Value::Function(builtin_print));
         
         env
     }
@@ -255,6 +256,20 @@ fn builtin_null(args: &[Value]) -> Result<Value, EvalError> {
     };
     
     Ok(Value::Number(if result { 1.0 } else { 0.0 }))
+}
+
+fn builtin_print(args: &[Value]) -> Result<Value, EvalError> {
+    for (i, arg) in args.iter().enumerate() {
+        if i > 0 {
+            print!(" ");
+        }
+        match arg {
+            Value::String(s) => print!("{}", s),  // Print strings without quotes
+            other => print!("{}", other),
+        }
+    }
+    println!();  // Add newline
+    Ok(Value::Nil)
 }
 
 pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError> {
