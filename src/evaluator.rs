@@ -57,6 +57,8 @@ impl Environment {
         env.define("=", Value::Function(builtin_equal));
         env.define("<", Value::Function(builtin_less_than));
         env.define(">", Value::Function(builtin_greater_than));
+        env.define("<=", Value::Function(builtin_less_than_or_equal));
+        env.define(">=", Value::Function(builtin_greater_than_or_equal));
         env.define("list", Value::Function(builtin_list));
         env.define("car", Value::Function(builtin_car));
         env.define("cdr", Value::Function(builtin_cdr));
@@ -198,6 +200,32 @@ fn builtin_greater_than(args: &[Value]) -> Result<Value, EvalError> {
             Ok(Value::Number(if a > b { 1.0 } else { 0.0 }))
         }
         _ => Err(EvalError::TypeError("> requires numbers".to_string())),
+    }
+}
+
+fn builtin_less_than_or_equal(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::ArityError("<= requires exactly 2 arguments".to_string()));
+    }
+    
+    match (&args[0], &args[1]) {
+        (Value::Number(a), Value::Number(b)) => {
+            Ok(Value::Number(if a <= b { 1.0 } else { 0.0 }))
+        }
+        _ => Err(EvalError::TypeError("<= requires numbers".to_string())),
+    }
+}
+
+fn builtin_greater_than_or_equal(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 2 {
+        return Err(EvalError::ArityError(">= requires exactly 2 arguments".to_string()));
+    }
+    
+    match (&args[0], &args[1]) {
+        (Value::Number(a), Value::Number(b)) => {
+            Ok(Value::Number(if a >= b { 1.0 } else { 0.0 }))
+        }
+        _ => Err(EvalError::TypeError(">= requires numbers".to_string())),
     }
 }
 
@@ -391,6 +419,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError>
                         "defn" => eval_defn(&elements[1..], env),
                         "lambda" => eval_lambda(&elements[1..], env),
                         "do" => eval_do(&elements[1..], env),
+                        "if" => eval_if(&elements[1..], env),
                         _ => eval_function_call(elements, env),
                     }
                 } else {
@@ -502,6 +531,35 @@ fn eval_do(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
         result = eval_expr(expr, env)?;
     }
     Ok(result)
+}
+
+fn eval_if(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    if args.len() < 2 || args.len() > 3 {
+        return Err(EvalError::ArityError("if requires 2 or 3 arguments (condition, then, optional else)".to_string()));
+    }
+    
+    let condition = eval_expr(&args[0], env)?;
+    
+    if is_truthy(&condition) {
+        // Evaluate then branch
+        eval_expr(&args[1], env)
+    } else if args.len() == 3 {
+        // Evaluate else branch
+        eval_expr(&args[2], env)
+    } else {
+        // No else branch, return nil
+        Ok(Value::Nil)
+    }
+}
+
+fn is_truthy(value: &Value) -> bool {
+    match value {
+        Value::Nil => false,
+        Value::Number(n) => *n != 0.0,
+        Value::String(s) => !s.is_empty(),
+        Value::List(list) => !list.is_empty(),
+        _ => true, // Functions, symbols, and other values are truthy
+    }
 }
 
 fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
