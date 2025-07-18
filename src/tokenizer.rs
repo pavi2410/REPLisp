@@ -18,6 +18,9 @@ pub enum Token {
     
     // End of input
     Eof,
+
+    // Unknown token
+    Unknown(String),
 }
 
 pub struct Tokenizer {
@@ -160,7 +163,7 @@ impl Tokenizer {
                 }
                 
                 Some(';') => {
-                    let comment = self.read_comment();
+                    let _comment = self.read_comment();
                     // Skip comments and continue
                     continue;
                 }
@@ -173,21 +176,34 @@ impl Tokenizer {
                     return self.read_number();
                 }
                 
-                Some(_) => {
+                Some(ch) if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) => {
                     return self.read_symbol();
+                }
+
+                Some(_) => {
+                    // If we reach here, it's an unknown token
+                    let unknown_char = self.current_char.unwrap();
+                    return Token::Unknown(unknown_char.to_string());
                 }
             }
         }
     }
 }
 
-pub fn tokenize(input: &str) -> Vec<Token> {
+pub fn tokenize(input: &str) -> Option<Vec<Token>> {
     let mut tokenizer = Tokenizer::new(input);
     let mut tokens = Vec::new();
     
     loop {
         let token = tokenizer.next_token();
         let is_eof = token == Token::Eof;
+        let is_unknown = matches!(token, Token::Unknown(_));
+
+        if is_unknown {
+            println!("tokenize: Found unknown character: {:?}", token);
+            return None;
+        }
+
         tokens.push(token);
         
         if is_eof {
@@ -195,5 +211,5 @@ pub fn tokenize(input: &str) -> Vec<Token> {
         }
     }
     
-    tokens
+    Some(tokens)
 }

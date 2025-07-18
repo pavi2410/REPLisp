@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use crate::tokenizer;
+use crate::{tokenizer, parser};
 
 pub fn run_repl(debug: bool) {
     println!("Welcome to REPLisp!");
@@ -30,14 +30,42 @@ pub fn run_repl(debug: bool) {
                 }
                 
                 let tokens = tokenizer::tokenize(input);
+
+                if tokens.is_none() {
+                    eprintln!("Error tokenizing input: {}", input);
+                    continue;
+                }
+                let tokens = tokens.unwrap();
                 
                 if debug {
                     println!("Tokens ({} total):", tokens.len());
                     for (i, token) in tokens.iter().enumerate() {
                         println!("  {}: {:?}", i, token);
                     }
-                } else {
-                    println!("Tokens: {:?}", tokens);
+                    println!("---");
+                }
+                
+                match parser::parse(tokens) {
+                    Ok(expressions) => {
+                        if debug {
+                            println!("AST ({} expressions):", expressions.len());
+                            for (i, expr) in expressions.iter().enumerate() {
+                                println!("  {}: {:?}", i, expr);
+                            }
+                            println!("---");
+                            println!("Pretty printed:");
+                            for expr in &expressions {
+                                println!("  {}", expr);
+                            }
+                        } else {
+                            for expr in &expressions {
+                                println!("{}", expr);
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("Parse error: {}", err);
+                    }
                 }
             }
             Err(err) => {
