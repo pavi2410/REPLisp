@@ -420,6 +420,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError>
                         "lambda" => eval_lambda(&elements[1..], env),
                         "do" => eval_do(&elements[1..], env),
                         "if" => eval_if(&elements[1..], env),
+                        "cond" => eval_cond(&elements[1..], env),
                         _ => eval_function_call(elements, env),
                     }
                 } else {
@@ -550,6 +551,45 @@ fn eval_if(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
         // No else branch, return nil
         Ok(Value::Nil)
     }
+}
+
+fn eval_cond(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    for clause in args {
+        match clause {
+            Expr::List(clause_elements) => {
+                if clause_elements.len() < 2 {
+                    return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string()));
+                }
+                
+                let condition_expr = &clause_elements[0];
+                let result_exprs = &clause_elements[1..];
+                
+                // Check for 'else' clause (special symbol that's always true)
+                let is_else_clause = matches!(condition_expr, Expr::Symbol(s) if s == "else");
+                
+                let condition_result = if is_else_clause {
+                    Value::Number(1.0) // else is always true
+                } else {
+                    eval_expr(condition_expr, env)?
+                };
+                
+                if is_truthy(&condition_result) {
+                    // Execute all expressions in the clause, return the last result
+                    let mut result = Value::Nil;
+                    for expr in result_exprs {
+                        result = eval_expr(expr, env)?;
+                    }
+                    return Ok(result);
+                }
+            }
+            _ => {
+                return Err(EvalError::TypeError("cond clauses must be lists".to_string()));
+            }
+        }
+    }
+    
+    // No clause matched, return nil
+    Ok(Value::Nil)
 }
 
 fn is_truthy(value: &Value) -> bool {
