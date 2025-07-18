@@ -542,6 +542,7 @@ fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
         closure: env.clone(),
     };
     
+    // Define function in environment
     env.define(&name, lambda.clone());
     Ok(lambda)
 }
@@ -679,6 +680,13 @@ fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value,
                     params.len(),
                     args.len()
                 )));
+            }
+            
+            // Merge current environment into closure for recursive calls
+            for (name, value) in &env.bindings {
+                if !closure.bindings.contains_key(name) {
+                    closure.define(name, value.clone());
+                }
             }
             
             // Bind arguments to parameters in closure environment
