@@ -67,6 +67,7 @@ impl Environment {
         env.define("cons", Value::Function(builtin_cons));
         env.define("length", Value::Function(builtin_length));
         env.define("null?", Value::Function(builtin_null));
+        env.define("reverse", Value::Function(builtin_reverse));
         env.define("print", Value::Function(builtin_print));
         env.define("min", Value::Function(builtin_min));
         env.define("max", Value::Function(builtin_max));
@@ -314,6 +315,22 @@ fn builtin_null(args: &[Value]) -> Result<Value, EvalError> {
     };
     
     Ok(Value::Number(if result { 1.0 } else { 0.0 }))
+}
+
+fn builtin_reverse(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::ArityError("reverse requires exactly 1 argument".to_string()));
+    }
+    
+    match &args[0] {
+        Value::List(list) => {
+            let mut reversed = list.clone();
+            reversed.reverse();
+            Ok(Value::List(reversed))
+        }
+        Value::Nil => Ok(Value::List(vec![])),
+        _ => Err(EvalError::TypeError("reverse requires a list".to_string())),
+    }
 }
 
 fn builtin_print(args: &[Value]) -> Result<Value, EvalError> {
