@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use crate::tokenizer;
 
 pub fn run_repl(debug: bool) {
     println!("Welcome to REPLisp!");
@@ -28,8 +29,16 @@ pub fn run_repl(debug: bool) {
                     println!("Input: {}", input);
                 }
                 
-                // TODO: Tokenize and evaluate the input
-                println!("Echo: {}", input);
+                let tokens = tokenizer::tokenize(input);
+                
+                if debug {
+                    println!("Tokens ({} total):", tokens.len());
+                    for (i, token) in tokens.iter().enumerate() {
+                        println!("  {}: {:?}", i, token);
+                    }
+                } else {
+                    println!("Tokens: {:?}", tokens);
+                }
             }
             Err(err) => {
                 eprintln!("Error reading input: {}", err);
