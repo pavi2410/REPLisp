@@ -17,7 +17,6 @@ pub fn execute_file(filename: &str, debug: bool) {
         println!("---");
     }
     
-    println!("Tokenizing: {}", filename);
     let tokens = tokenizer::tokenize(&content);
     
     if tokens.is_none() {
@@ -34,7 +33,6 @@ pub fn execute_file(filename: &str, debug: bool) {
         println!("---");
     }
     
-    println!("Parsing: {}", filename);
     let expressions = match parser::parse(tokens) {
         Ok(expressions) => {
             if debug {
@@ -52,7 +50,6 @@ pub fn execute_file(filename: &str, debug: bool) {
         }
     };
     
-    println!("Evaluating: {}", filename);
     let mut env = evaluator::Environment::new();
     
     for (i, expr) in expressions.iter().enumerate() {
@@ -60,9 +57,8 @@ pub fn execute_file(filename: &str, debug: bool) {
             Ok(value) => {
                 if debug {
                     println!("Expression {}: {} => {}", i, expr, value);
-                } else {
-                    println!("{}", value);
                 }
+                // Don't print results implicitly - only explicit print calls show output
             }
             Err(err) => {
                 eprintln!("Evaluation error in expression {}: {}", i, err);

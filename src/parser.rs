@@ -37,16 +37,16 @@ impl Parser {
         self.position += 1;
     }
     
-    fn expect_token(&mut self, expected: Token) -> Result<(), ParseError> {
-        match self.current_token() {
-            Some(token) if *token == expected => {
-                self.advance();
-                Ok(())
-            }
-            Some(token) => Err(ParseError::UnexpectedToken(token.clone())),
-            None => Err(ParseError::UnexpectedEof),
-        }
-    }
+    // fn expect_token(&mut self, expected: Token) -> Result<(), ParseError> {
+    //     match self.current_token() {
+    //         Some(token) if *token == expected => {
+    //             self.advance();
+    //             Ok(())
+    //         }
+    //         Some(token) => Err(ParseError::UnexpectedToken(token.clone())),
+    //         None => Err(ParseError::UnexpectedEof),
+    //     }
+    // }
     
     pub fn parse(&mut self) -> Result<Vec<Expr>, ParseError> {
         let mut expressions = Vec::new();
