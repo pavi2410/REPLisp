@@ -6,6 +6,7 @@ pub enum Value {
     Number(f64),
     String(String),
     Symbol(String),
+    Boolean(bool),
     List(Vec<Value>),
     Function(fn(&[Value]) -> Result<Value, EvalError>),
     Lambda {
@@ -22,6 +23,7 @@ impl PartialEq for Value {
             (Value::Number(a), Value::Number(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
             (Value::Symbol(a), Value::Symbol(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
             (Value::List(a), Value::List(b)) => a == b,
             (Value::Nil, Value::Nil) => true,
             _ => false, // Functions and lambdas are not comparable
@@ -70,6 +72,9 @@ impl Environment {
         env.define("max", Value::Function(builtin_max));
         env.define("abs", Value::Function(builtin_abs));
         env.define("mod", Value::Function(builtin_mod));
+        env.define("not", Value::Function(builtin_not));
+        env.define("and", Value::Function(builtin_and));
+        env.define("or", Value::Function(builtin_or));
         
         env
     }
@@ -171,10 +176,12 @@ fn builtin_equal(args: &[Value]) -> Result<Value, EvalError> {
         (Value::Number(a), Value::Number(b)) => a == b,
         (Value::String(a), Value::String(b)) => a == b,
         (Value::Symbol(a), Value::Symbol(b)) => a == b,
+        (Value::Boolean(a), Value::Boolean(b)) => a == b,
+        (Value::Nil, Value::Nil) => true,
         _ => false,
     };
     
-    Ok(Value::Number(if result { 1.0 } else { 0.0 }))
+    Ok(Value::Boolean(result))
 }
 
 fn builtin_less_than(args: &[Value]) -> Result<Value, EvalError> {
@@ -398,14 +405,49 @@ fn builtin_mod(args: &[Value]) -> Result<Value, EvalError> {
     }
 }
 
+fn builtin_not(args: &[Value]) -> Result<Value, EvalError> {
+    if args.len() != 1 {
+        return Err(EvalError::ArityError("not requires exactly 1 argument".to_string()));
+    }
+    
+    let result = !is_truthy(&args[0]);
+    Ok(Value::Boolean(result))
+}
+
+fn builtin_and(args: &[Value]) -> Result<Value, EvalError> {
+    // Short-circuiting: return false if any argument is falsy
+    for arg in args {
+        if !is_truthy(arg) {
+            return Ok(Value::Boolean(false));
+        }
+    }
+    // All arguments are truthy
+    Ok(Value::Boolean(true))
+}
+
+fn builtin_or(args: &[Value]) -> Result<Value, EvalError> {
+    // Short-circuiting: return true if any argument is truthy
+    for arg in args {
+        if is_truthy(arg) {
+            return Ok(Value::Boolean(true));
+        }
+    }
+    // All arguments are falsy
+    Ok(Value::Boolean(false))
+}
+
 pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError> {
     match expr {
         Expr::Number(n) => Ok(Value::Number(*n)),
         Expr::String(s) => Ok(Value::String(s.clone())),
         Expr::Symbol(s) => {
-            env.lookup(s)
-                .cloned()
-                .ok_or_else(|| EvalError::UndefinedSymbol(s.clone()))
+            match s.as_str() {
+                "true" => Ok(Value::Boolean(true)),
+                "false" => Ok(Value::Boolean(false)),
+                _ => env.lookup(s)
+                    .cloned()
+                    .ok_or_else(|| EvalError::UndefinedSymbol(s.clone()))
+            }
         }
         Expr::Quote(expr) => eval_quote(expr),
         Expr::List(elements) => {
@@ -435,7 +477,13 @@ fn eval_quote(expr: &Expr) -> Result<Value, EvalError> {
     match expr {
         Expr::Number(n) => Ok(Value::Number(*n)),
         Expr::String(s) => Ok(Value::String(s.clone())),
-        Expr::Symbol(s) => Ok(Value::Symbol(s.clone())),
+        Expr::Symbol(s) => {
+            match s.as_str() {
+                "true" => Ok(Value::Boolean(true)),
+                "false" => Ok(Value::Boolean(false)),
+                _ => Ok(Value::Symbol(s.clone()))
+            }
+        }
         Expr::List(elements) => {
             let mut values = Vec::new();
             for elem in elements {
@@ -595,6 +643,7 @@ fn eval_cond(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
 fn is_truthy(value: &Value) -> bool {
     match value {
         Value::Nil => false,
+        Value::Boolean(b) => *b,
         Value::Number(n) => *n != 0.0,
         Value::String(s) => !s.is_empty(),
         Value::List(list) => !list.is_empty(),
@@ -654,6 +703,7 @@ impl std::fmt::Display for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::String(s) => write!(f, "\"{}\"", s),
             Value::Symbol(s) => write!(f, "{}", s),
+            Value::Boolean(b) => write!(f, "{}", if *b { "true" } else { "false" }),
             Value::List(elements) => {
                 write!(f, "(")?;
                 for (i, elem) in elements.iter().enumerate() {
