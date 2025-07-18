@@ -10,7 +10,7 @@ pub enum Value {
     Function(fn(&[Value]) -> Result<Value, EvalError>),
     Lambda {
         params: Vec<String>,
-        body: Box<Expr>,
+        body: Vec<Expr>,
         closure: Environment,
     },
     Nil,
@@ -390,6 +390,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError>
                         "def" => eval_def(&elements[1..], env),
                         "defn" => eval_defn(&elements[1..], env),
                         "lambda" => eval_lambda(&elements[1..], env),
+                        "do" => eval_do(&elements[1..], env),
                         _ => eval_function_call(elements, env),
                     }
                 } else {
@@ -432,8 +433,8 @@ fn eval_def(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
 }
 
 fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
-    if args.len() != 3 {
-        return Err(EvalError::ArityError("defn requires exactly 3 arguments".to_string()));
+    if args.len() < 3 {
+        return Err(EvalError::ArityError("defn requires at least 3 arguments".to_string()));
     }
     
     let name = match &args[0] {
@@ -455,11 +456,11 @@ fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
         _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string())),
     };
     
-    let body = args[2].clone();
+    let body = args[2..].to_vec();
     
     let lambda = Value::Lambda {
         params,
-        body: Box::new(body),
+        body,
         closure: env.clone(),
     };
     
@@ -468,8 +469,8 @@ fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
 }
 
 fn eval_lambda(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
-    if args.len() != 2 {
-        return Err(EvalError::ArityError("lambda requires exactly 2 arguments".to_string()));
+    if args.len() < 2 {
+        return Err(EvalError::ArityError("lambda requires at least 2 arguments".to_string()));
     }
     
     let params = match &args[0] {
@@ -486,13 +487,21 @@ fn eval_lambda(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError>
         _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string())),
     };
     
-    let body = args[1].clone();
+    let body = args[1..].to_vec();
     
     Ok(Value::Lambda {
         params,
-        body: Box::new(body),
+        body,
         closure: env.clone(),
     })
+}
+
+fn eval_do(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+    let mut result = Value::Nil;
+    for expr in args {
+        result = eval_expr(expr, env)?;
+    }
+    Ok(result)
 }
 
 fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
@@ -530,8 +539,12 @@ fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value,
                 closure.define(param, arg.clone());
             }
             
-            // Evaluate body in closure environment
-            eval_expr(&body, &mut closure)
+            // Evaluate body expressions in sequence, return last result
+            let mut result = Value::Nil;
+            for expr in &body {
+                result = eval_expr(expr, &mut closure)?;
+            }
+            Ok(result)
         }
         _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func))),
     }
