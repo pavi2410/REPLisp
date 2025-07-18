@@ -1,10 +1,12 @@
 use std::io::{self, Write};
-use crate::{tokenizer, parser};
+use crate::{tokenizer, parser, evaluator};
 
 pub fn run_repl(debug: bool) {
     println!("Welcome to REPLisp!");
     println!("Type expressions to evaluate them.");
     println!("Type :quit or press Ctrl+C to exit.");
+    
+    let mut env = evaluator::Environment::new();
     
     loop {
         print!("replisp> ");
@@ -53,13 +55,21 @@ pub fn run_repl(debug: bool) {
                                 println!("  {}: {:?}", i, expr);
                             }
                             println!("---");
-                            println!("Pretty printed:");
-                            for expr in &expressions {
-                                println!("  {}", expr);
-                            }
-                        } else {
-                            for expr in &expressions {
-                                println!("{}", expr);
+                        }
+                        
+                        // Evaluate each expression
+                        for expr in &expressions {
+                            match evaluator::eval_expr(expr, &mut env) {
+                                Ok(value) => {
+                                    if debug {
+                                        println!("Result: {}", value);
+                                    } else {
+                                        println!("{}", value);
+                                    }
+                                }
+                                Err(err) => {
+                                    eprintln!("Evaluation error: {}", err);
+                                }
                             }
                         }
                     }

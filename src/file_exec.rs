@@ -1,6 +1,6 @@
 use std::fs;
 use std::process;
-use crate::{tokenizer, parser};
+use crate::{tokenizer, parser, evaluator};
 
 pub fn execute_file(filename: &str, debug: bool) {
     let content = match fs::read_to_string(filename) {
@@ -35,7 +35,7 @@ pub fn execute_file(filename: &str, debug: bool) {
     }
     
     println!("Parsing: {}", filename);
-    match parser::parse(tokens) {
+    let expressions = match parser::parse(tokens) {
         Ok(expressions) => {
             if debug {
                 println!("AST ({} expressions):", expressions.len());
@@ -43,17 +43,31 @@ pub fn execute_file(filename: &str, debug: bool) {
                     println!("  {}: {:?}", i, expr);
                 }
                 println!("---");
-                println!("Pretty printed:");
-                for (i, expr) in expressions.iter().enumerate() {
-                    println!("  {}: {}", i, expr);
-                }
-            } else {
-                println!("AST: {:?}", expressions);
             }
+            expressions
         }
         Err(err) => {
             eprintln!("Parse error: {}", err);
             process::exit(1);
+        }
+    };
+    
+    println!("Evaluating: {}", filename);
+    let mut env = evaluator::Environment::new();
+    
+    for (i, expr) in expressions.iter().enumerate() {
+        match evaluator::eval_expr(expr, &mut env) {
+            Ok(value) => {
+                if debug {
+                    println!("Expression {}: {} => {}", i, expr, value);
+                } else {
+                    println!("{}", value);
+                }
+            }
+            Err(err) => {
+                eprintln!("Evaluation error in expression {}: {}", i, err);
+                process::exit(1);
+            }
         }
     }
 }
