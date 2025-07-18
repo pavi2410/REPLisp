@@ -1,4 +1,5 @@
 use clap::Parser;
+use replisp::{repl, file_exec};
 
 #[derive(Parser)]
 #[command(name = "replisp")]
@@ -22,14 +23,14 @@ fn main() {
                 println!("Loading file: {}", filename);
             }
             
-            println!("Executing file: {}", filename);
+            file_exec::execute_file(&filename, args.debug);
         }
         None => {
             if args.debug {
                 println!("Starting REPL mode");
             }
             
-            println!("Welcome to REPLisp!");
+            repl::run_repl(args.debug);
         }
     }
 }
