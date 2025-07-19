@@ -89,10 +89,10 @@
 
 ; Unit conversions
 (defn celsius-to-fahrenheit (celsius)
-  (+ (* celsius 9/5) 32))
+  (+ (* celsius (/ 9 5)) 32))
 
 (defn fahrenheit-to-celsius (fahrenheit)
-  (* (- fahrenheit 32) 5/9))
+  (* (- fahrenheit 32) (/ 5 9)))
 
 (defn miles-to-kilometers (miles)
   (* miles 1.60934))

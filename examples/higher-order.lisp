@@ -39,7 +39,7 @@
   (lambda (x) (lambda (y) (f x y))))
 
 (def curried-add (curry add))
-(def add-ten ((curried-add 10)))
+(def add-ten (curried-add 10))
 
 (print "Curried add 10 to 7:")
 (print (add-ten 7))                ; 17

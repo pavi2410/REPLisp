@@ -314,7 +314,7 @@ fn builtin_null(args: &[Value]) -> Result<Value, EvalError> {
         _ => false,
     };
     
-    Ok(Value::Number(if result { 1.0 } else { 0.0 }))
+    Ok(Value::Boolean(result))
 }
 
 fn builtin_reverse(args: &[Value]) -> Result<Value, EvalError> {
