@@ -1,6 +1,6 @@
 use std::fs;
 use std::process;
-use crate::{tokenizer, parser, evaluator};
+use crate::{tokenizer, parser, evaluator, Environment};
 
 pub fn execute_file(filename: &str, debug: bool) {
     let content = match fs::read_to_string(filename) {
@@ -50,7 +50,7 @@ pub fn execute_file(filename: &str, debug: bool) {
         }
     };
     
-    let mut env = evaluator::Environment::new();
+    let mut env = Environment::new();
     
     for (i, expr) in expressions.iter().enumerate() {
         let mut stack = Vec::new();

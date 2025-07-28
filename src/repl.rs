@@ -1,12 +1,12 @@
 use std::io::{self, Write};
-use crate::{tokenizer, parser, evaluator};
+use crate::{tokenizer, parser, evaluator, Environment};
 
 pub fn run_repl(debug: bool) {
     println!("Welcome to REPLisp!");
     println!("Type expressions to evaluate them.");
     println!("Type :quit or press Ctrl+C to exit.");
     
-    let mut env = evaluator::Environment::new();
+    let mut env = Environment::new();
     
     loop {
         print!("replisp> ");
