@@ -1,5 +1,17 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub struct Position {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl Position {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
     // Literals
     Number(f64),
     String(String),
@@ -23,10 +35,24 @@ pub enum Token {
     Unknown(String),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub position: Position,
+}
+
+impl Token {
+    pub fn new(token_type: TokenType, position: Position) -> Self {
+        Self { token_type, position }
+    }
+}
+
 pub struct Tokenizer {
     input: Vec<char>,
     position: usize,
     current_char: Option<char>,
+    line: usize,
+    column: usize,
 }
 
 impl Tokenizer {
@@ -38,12 +64,27 @@ impl Tokenizer {
             input: chars,
             position: 0,
             current_char,
+            line: 1,
+            column: 1,
         }
     }
     
     fn advance(&mut self) {
+        if let Some(ch) = self.current_char {
+            if ch == '\n' {
+                self.line += 1;
+                self.column = 1;
+            } else {
+                self.column += 1;
+            }
+        }
+        
         self.position += 1;
         self.current_char = self.input.get(self.position).copied();
+    }
+    
+    fn current_position(&self) -> Position {
+        Position::new(self.line, self.column)
     }
     
     fn peek(&self) -> Option<char> {
@@ -62,6 +103,7 @@ impl Tokenizer {
     
     fn read_number(&mut self) -> Token {
         let start = self.position;
+        let pos = self.current_position();
 
         // Handle negative numbers
         if self.current_char == Some('-') {
@@ -79,10 +121,11 @@ impl Tokenizer {
         let number_str: String = self.input[start..self.position].iter().collect();
         let number = number_str.parse::<f64>().unwrap_or(0.0);
         
-        Token::Number(number)
+        Token::new(TokenType::Number(number), pos)
     }
     
     fn read_string(&mut self) -> Token {
+        let pos = self.current_position();
         self.advance(); // Skip opening quote
         let start = self.position;
         
@@ -100,11 +143,12 @@ impl Tokenizer {
             self.advance(); // Skip closing quote
         }
         
-        Token::String(string_content)
+        Token::new(TokenType::String(string_content), pos)
     }
     
     fn read_symbol(&mut self) -> Token {
         let start = self.position;
+        let pos = self.current_position();
         
         while let Some(ch) = self.current_char {
             if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) {
@@ -115,10 +159,11 @@ impl Tokenizer {
         }
         
         let symbol: String = self.input[start..self.position].iter().collect();
-        Token::Symbol(symbol)
+        Token::new(TokenType::Symbol(symbol), pos)
     }
     
     fn read_comment(&mut self) -> Token {
+        let pos = self.current_position();
         self.advance(); // Skip semicolon
         let start = self.position;
         
@@ -130,13 +175,13 @@ impl Tokenizer {
         }
         
         let comment: String = self.input[start..self.position].iter().collect();
-        Token::Comment(comment)
+        Token::new(TokenType::Comment(comment), pos)
     }
     
     pub fn next_token(&mut self) -> Token {
         loop {
             match self.current_char {
-                None => return Token::Eof,
+                None => return Token::new(TokenType::Eof, self.current_position()),
                 
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
@@ -144,18 +189,21 @@ impl Tokenizer {
                 }
                 
                 Some('(') => {
+                    let pos = self.current_position();
                     self.advance();
-                    return Token::LeftParen;
+                    return Token::new(TokenType::LeftParen, pos);
                 }
                 
                 Some(')') => {
+                    let pos = self.current_position();
                     self.advance();
-                    return Token::RightParen;
+                    return Token::new(TokenType::RightParen, pos);
                 }
                 
                 Some('\'') => {
+                    let pos = self.current_position();
                     self.advance();
-                    return Token::Quote;
+                    return Token::new(TokenType::Quote, pos);
                 }
                 
                 Some('"') => {
@@ -182,8 +230,10 @@ impl Tokenizer {
 
                 Some(_) => {
                     // If we reach here, it's an unknown token
+                    let pos = self.current_position();
                     let unknown_char = self.current_char.unwrap();
-                    return Token::Unknown(unknown_char.to_string());
+                    self.advance();
+                    return Token::new(TokenType::Unknown(unknown_char.to_string()), pos);
                 }
             }
         }
@@ -196,11 +246,12 @@ pub fn tokenize(input: &str) -> Option<Vec<Token>> {
     
     loop {
         let token = tokenizer.next_token();
-        let is_eof = token == Token::Eof;
-        let is_unknown = matches!(token, Token::Unknown(_));
+        let is_eof = matches!(token.token_type, TokenType::Eof);
+        let is_unknown = matches!(token.token_type, TokenType::Unknown(_));
 
         if is_unknown {
-            println!("tokenize: Found unknown character: {:?}", token);
+            println!("tokenize: Found unknown character at line {}, column {}: {:?}", 
+                     token.position.line, token.position.column, token.token_type);
             return None;
         }
 

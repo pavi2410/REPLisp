@@ -53,7 +53,8 @@ pub fn execute_file(filename: &str, debug: bool) {
     let mut env = evaluator::Environment::new();
     
     for (i, expr) in expressions.iter().enumerate() {
-        match evaluator::eval_expr(expr, &mut env) {
+        let mut stack = Vec::new();
+        match evaluator::eval_expr_with_stack(expr, &mut env, &mut stack) {
             Ok(value) => {
                 if debug {
                     println!("Expression {}: {} => {}", i, expr, value);
@@ -61,7 +62,8 @@ pub fn execute_file(filename: &str, debug: bool) {
                 // Don't print results implicitly - only explicit print calls show output
             }
             Err(err) => {
-                eprintln!("Evaluation error in expression {}: {}", i, err);
+                let error_with_stack = err.with_stack(&stack);
+                eprintln!("Evaluation error in expression {}: {}", i, error_with_stack);
                 process::exit(1);
             }
         }

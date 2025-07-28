@@ -59,7 +59,8 @@ pub fn run_repl(debug: bool) {
                         
                         // Evaluate each expression
                         for expr in &expressions {
-                            match evaluator::eval_expr(expr, &mut env) {
+                            let mut stack = Vec::new();
+                            match evaluator::eval_expr_with_stack(expr, &mut env, &mut stack) {
                                 Ok(value) => {
                                     if debug {
                                         println!("Result: {}", value);
@@ -68,7 +69,8 @@ pub fn run_repl(debug: bool) {
                                     }
                                 }
                                 Err(err) => {
-                                    eprintln!("Evaluation error: {}", err);
+                                    let error_with_stack = err.with_stack(&stack);
+                                    eprintln!("Evaluation error: {}", error_with_stack);
                                 }
                             }
                         }

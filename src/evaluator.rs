@@ -1,4 +1,5 @@
-use crate::parser::Expr;
+use crate::parser::{Expr, ExprType};
+use crate::tokenizer::Position;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -31,13 +32,54 @@ impl PartialEq for Value {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct StackFrame {
+    pub function_name: String,
+    pub position: Position,
+}
+
 #[derive(Debug)]
 pub enum EvalError {
-    UndefinedSymbol(String),
-    TypeError(String),
-    ArityError(String),
-    DivisionByZero,
-    InvalidFunction(String),
+    UndefinedSymbol(String, Position),
+    TypeError(String, Position),
+    ArityError(String, Position),
+    DivisionByZero(Position),
+    InvalidFunction(String, Position),
+}
+
+impl EvalError {
+    pub fn position(&self) -> &Position {
+        match self {
+            EvalError::UndefinedSymbol(_, pos) => pos,
+            EvalError::TypeError(_, pos) => pos,
+            EvalError::ArityError(_, pos) => pos,
+            EvalError::DivisionByZero(pos) => pos,
+            EvalError::InvalidFunction(_, pos) => pos,
+        }
+    }
+    
+    pub fn set_position(&mut self, new_pos: Position) {
+        match self {
+            EvalError::UndefinedSymbol(_, pos) => *pos = new_pos,
+            EvalError::TypeError(_, pos) => *pos = new_pos,
+            EvalError::ArityError(_, pos) => *pos = new_pos,
+            EvalError::DivisionByZero(pos) => *pos = new_pos,
+            EvalError::InvalidFunction(_, pos) => *pos = new_pos,
+        }
+    }
+    
+    pub fn with_stack(self, stack: &[StackFrame]) -> EvalErrorWithStack {
+        EvalErrorWithStack {
+            error: self,
+            stack_trace: stack.to_vec(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct EvalErrorWithStack {
+    pub error: EvalError,
+    pub stack_trace: Vec<StackFrame>,
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +137,7 @@ fn builtin_add(args: &[Value]) -> Result<Value, EvalError> {
     for arg in args {
         match arg {
             Value::Number(n) => sum += n,
-            _ => return Err(EvalError::TypeError("+ requires numbers".to_string())),
+            _ => return Err(EvalError::TypeError("+ requires numbers".to_string(), Position::new(1, 1))),
         }
     }
     Ok(Value::Number(sum))
@@ -103,7 +145,7 @@ fn builtin_add(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_subtract(args: &[Value]) -> Result<Value, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::ArityError("- requires at least 1 argument".to_string()));
+        return Err(EvalError::ArityError("- requires at least 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
@@ -115,13 +157,13 @@ fn builtin_subtract(args: &[Value]) -> Result<Value, EvalError> {
                 for arg in &args[1..] {
                     match arg {
                         Value::Number(n) => result -= n,
-                        _ => return Err(EvalError::TypeError("- requires numbers".to_string())),
+                        _ => return Err(EvalError::TypeError("- requires numbers".to_string(), Position::new(1, 1))),
                     }
                 }
                 Ok(Value::Number(result))
             }
         }
-        _ => Err(EvalError::TypeError("- requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("- requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
@@ -130,7 +172,7 @@ fn builtin_multiply(args: &[Value]) -> Result<Value, EvalError> {
     for arg in args {
         match arg {
             Value::Number(n) => product *= n,
-            _ => return Err(EvalError::TypeError("* requires numbers".to_string())),
+            _ => return Err(EvalError::TypeError("* requires numbers".to_string(), Position::new(1, 1))),
         }
     }
     Ok(Value::Number(product))
@@ -138,14 +180,14 @@ fn builtin_multiply(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_divide(args: &[Value]) -> Result<Value, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::ArityError("/ requires at least 1 argument".to_string()));
+        return Err(EvalError::ArityError("/ requires at least 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
         Value::Number(first) => {
             if args.len() == 1 {
                 if *first == 0.0 {
-                    return Err(EvalError::DivisionByZero);
+                    return Err(EvalError::DivisionByZero(Position::new(1, 1)));
                 }
                 Ok(Value::Number(1.0 / first))
             } else {
@@ -154,23 +196,23 @@ fn builtin_divide(args: &[Value]) -> Result<Value, EvalError> {
                     match arg {
                         Value::Number(n) => {
                             if *n == 0.0 {
-                                return Err(EvalError::DivisionByZero);
+                                return Err(EvalError::DivisionByZero(Position::new(1, 1)));
                             }
                             result /= n;
                         }
-                        _ => return Err(EvalError::TypeError("/ requires numbers".to_string())),
+                        _ => return Err(EvalError::TypeError("/ requires numbers".to_string(), Position::new(1, 1))),
                     }
                 }
                 Ok(Value::Number(result))
             }
         }
-        _ => Err(EvalError::TypeError("/ requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("/ requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_equal(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("= requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("= requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     let result = match (&args[0], &args[1]) {
@@ -187,53 +229,53 @@ fn builtin_equal(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_less_than(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("< requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("< requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match (&args[0], &args[1]) {
         (Value::Number(a), Value::Number(b)) => {
-            Ok(Value::Number(if a < b { 1.0 } else { 0.0 }))
+            Ok(Value::Boolean(a < b))
         }
-        _ => Err(EvalError::TypeError("< requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("< requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_greater_than(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("> requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("> requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match (&args[0], &args[1]) {
         (Value::Number(a), Value::Number(b)) => {
-            Ok(Value::Number(if a > b { 1.0 } else { 0.0 }))
+            Ok(Value::Boolean(a > b))
         }
-        _ => Err(EvalError::TypeError("> requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("> requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_less_than_or_equal(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("<= requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("<= requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match (&args[0], &args[1]) {
         (Value::Number(a), Value::Number(b)) => {
-            Ok(Value::Number(if a <= b { 1.0 } else { 0.0 }))
+            Ok(Value::Boolean(a <= b))
         }
-        _ => Err(EvalError::TypeError("<= requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("<= requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_greater_than_or_equal(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError(">= requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError(">= requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match (&args[0], &args[1]) {
         (Value::Number(a), Value::Number(b)) => {
-            Ok(Value::Number(if a >= b { 1.0 } else { 0.0 }))
+            Ok(Value::Boolean(a >= b))
         }
-        _ => Err(EvalError::TypeError(">= requires numbers".to_string())),
+        _ => Err(EvalError::TypeError(">= requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
@@ -243,7 +285,7 @@ fn builtin_list(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_car(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("car requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("car requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
@@ -254,13 +296,13 @@ fn builtin_car(args: &[Value]) -> Result<Value, EvalError> {
                 Ok(list[0].clone())
             }
         }
-        _ => Err(EvalError::TypeError("car requires a list".to_string())),
+        _ => Err(EvalError::TypeError("car requires a list".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_cdr(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("cdr requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("cdr requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
@@ -271,13 +313,13 @@ fn builtin_cdr(args: &[Value]) -> Result<Value, EvalError> {
                 Ok(Value::List(list[1..].to_vec()))
             }
         }
-        _ => Err(EvalError::TypeError("cdr requires a list".to_string())),
+        _ => Err(EvalError::TypeError("cdr requires a list".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_cons(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("cons requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("cons requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match &args[1] {
@@ -287,25 +329,25 @@ fn builtin_cons(args: &[Value]) -> Result<Value, EvalError> {
             Ok(Value::List(new_list))
         }
         Value::Nil => Ok(Value::List(vec![args[0].clone()])),
-        _ => Err(EvalError::TypeError("cons requires second argument to be a list".to_string())),
+        _ => Err(EvalError::TypeError("cons requires second argument to be a list".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_length(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("length requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("length requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
         Value::List(list) => Ok(Value::Number(list.len() as f64)),
         Value::String(s) => Ok(Value::Number(s.len() as f64)),
-        _ => Err(EvalError::TypeError("length requires a list or string".to_string())),
+        _ => Err(EvalError::TypeError("length requires a list or string".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_null(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("null? requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("null? requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     let result = match &args[0] {
@@ -319,7 +361,7 @@ fn builtin_null(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_reverse(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("reverse requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("reverse requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
@@ -329,7 +371,7 @@ fn builtin_reverse(args: &[Value]) -> Result<Value, EvalError> {
             Ok(Value::List(reversed))
         }
         Value::Nil => Ok(Value::List(vec![])),
-        _ => Err(EvalError::TypeError("reverse requires a list".to_string())),
+        _ => Err(EvalError::TypeError("reverse requires a list".to_string(), Position::new(1, 1))),
     }
 }
 
@@ -349,12 +391,12 @@ fn builtin_print(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_min(args: &[Value]) -> Result<Value, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::ArityError("min requires at least 1 argument".to_string()));
+        return Err(EvalError::ArityError("min requires at least 1 argument".to_string(), Position::new(1, 1)));
     }
     
     let mut min_val = match &args[0] {
         Value::Number(n) => *n,
-        _ => return Err(EvalError::TypeError("min requires numbers".to_string())),
+        _ => return Err(EvalError::TypeError("min requires numbers".to_string(), Position::new(1, 1))),
     };
     
     for arg in &args[1..] {
@@ -364,7 +406,7 @@ fn builtin_min(args: &[Value]) -> Result<Value, EvalError> {
                     min_val = *n;
                 }
             }
-            _ => return Err(EvalError::TypeError("min requires numbers".to_string())),
+            _ => return Err(EvalError::TypeError("min requires numbers".to_string(), Position::new(1, 1))),
         }
     }
     
@@ -373,12 +415,12 @@ fn builtin_min(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_max(args: &[Value]) -> Result<Value, EvalError> {
     if args.is_empty() {
-        return Err(EvalError::ArityError("max requires at least 1 argument".to_string()));
+        return Err(EvalError::ArityError("max requires at least 1 argument".to_string(), Position::new(1, 1)));
     }
     
     let mut max_val = match &args[0] {
         Value::Number(n) => *n,
-        _ => return Err(EvalError::TypeError("max requires numbers".to_string())),
+        _ => return Err(EvalError::TypeError("max requires numbers".to_string(), Position::new(1, 1))),
     };
     
     for arg in &args[1..] {
@@ -388,7 +430,7 @@ fn builtin_max(args: &[Value]) -> Result<Value, EvalError> {
                     max_val = *n;
                 }
             }
-            _ => return Err(EvalError::TypeError("max requires numbers".to_string())),
+            _ => return Err(EvalError::TypeError("max requires numbers".to_string(), Position::new(1, 1))),
         }
     }
     
@@ -397,34 +439,34 @@ fn builtin_max(args: &[Value]) -> Result<Value, EvalError> {
 
 fn builtin_abs(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("abs requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("abs requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     match &args[0] {
         Value::Number(n) => Ok(Value::Number(n.abs())),
-        _ => Err(EvalError::TypeError("abs requires a number".to_string())),
+        _ => Err(EvalError::TypeError("abs requires a number".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_mod(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("mod requires exactly 2 arguments".to_string()));
+        return Err(EvalError::ArityError("mod requires exactly 2 arguments".to_string(), Position::new(1, 1)));
     }
     
     match (&args[0], &args[1]) {
         (Value::Number(a), Value::Number(b)) => {
             if *b == 0.0 {
-                return Err(EvalError::DivisionByZero);
+                return Err(EvalError::DivisionByZero(Position::new(1, 1)));
             }
             Ok(Value::Number(a % b))
         }
-        _ => Err(EvalError::TypeError("mod requires numbers".to_string())),
+        _ => Err(EvalError::TypeError("mod requires numbers".to_string(), Position::new(1, 1))),
     }
 }
 
 fn builtin_not(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("not requires exactly 1 argument".to_string()));
+        return Err(EvalError::ArityError("not requires exactly 1 argument".to_string(), Position::new(1, 1)));
     }
     
     let result = !is_truthy(&args[0]);
@@ -454,36 +496,40 @@ fn builtin_or(args: &[Value]) -> Result<Value, EvalError> {
 }
 
 pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError> {
-    match expr {
-        Expr::Number(n) => Ok(Value::Number(*n)),
-        Expr::String(s) => Ok(Value::String(s.clone())),
-        Expr::Symbol(s) => {
+    eval_expr_with_stack(expr, env, &mut Vec::new())
+}
+
+pub fn eval_expr_with_stack(expr: &Expr, env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
+    match &expr.expr_type {
+        ExprType::Number(n) => Ok(Value::Number(*n)),
+        ExprType::String(s) => Ok(Value::String(s.clone())),
+        ExprType::Symbol(s) => {
             match s.as_str() {
                 "true" => Ok(Value::Boolean(true)),
                 "false" => Ok(Value::Boolean(false)),
                 _ => env.lookup(s)
                     .cloned()
-                    .ok_or_else(|| EvalError::UndefinedSymbol(s.clone()))
+                    .ok_or_else(|| EvalError::UndefinedSymbol(s.clone(), expr.position.clone()))
             }
         }
-        Expr::Quote(expr) => eval_quote(expr),
-        Expr::List(elements) => {
+        ExprType::Quote(inner_expr) => eval_quote(inner_expr),
+        ExprType::List(elements) => {
             if elements.is_empty() {
                 Ok(Value::List(vec![]))
             } else {
                 // Check for special forms
-                if let Expr::Symbol(name) = &elements[0] {
+                if let ExprType::Symbol(name) = &elements[0].expr_type {
                     match name.as_str() {
-                        "def" => eval_def(&elements[1..], env),
-                        "defn" => eval_defn(&elements[1..], env),
-                        "lambda" => eval_lambda(&elements[1..], env),
-                        "do" => eval_do(&elements[1..], env),
-                        "if" => eval_if(&elements[1..], env),
-                        "cond" => eval_cond(&elements[1..], env),
-                        _ => eval_function_call(elements, env),
+                        "def" => eval_def(&elements[1..], env, stack),
+                        "defn" => eval_defn(&elements[1..], env, stack),
+                        "lambda" => eval_lambda(&elements[1..], env, stack),
+                        "do" => eval_do(&elements[1..], env, stack),
+                        "if" => eval_if(&elements[1..], env, stack),
+                        "cond" => eval_cond(&elements[1..], env, stack),
+                        _ => eval_function_call(elements, env, stack),
                     }
                 } else {
-                    eval_function_call(elements, env)
+                    eval_function_call(elements, env, stack)
                 }
             }
         }
@@ -491,64 +537,74 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, EvalError>
 }
 
 fn eval_quote(expr: &Expr) -> Result<Value, EvalError> {
-    match expr {
-        Expr::Number(n) => Ok(Value::Number(*n)),
-        Expr::String(s) => Ok(Value::String(s.clone())),
-        Expr::Symbol(s) => {
+    match &expr.expr_type {
+        ExprType::Number(n) => Ok(Value::Number(*n)),
+        ExprType::String(s) => Ok(Value::String(s.clone())),
+        ExprType::Symbol(s) => {
             match s.as_str() {
                 "true" => Ok(Value::Boolean(true)),
                 "false" => Ok(Value::Boolean(false)),
                 _ => Ok(Value::Symbol(s.clone()))
             }
         }
-        Expr::List(elements) => {
+        ExprType::List(elements) => {
             let mut values = Vec::new();
             for elem in elements {
                 values.push(eval_quote(elem)?);
             }
             Ok(Value::List(values))
         }
-        Expr::Quote(expr) => eval_quote(expr),
+        ExprType::Quote(inner_expr) => eval_quote(inner_expr),
     }
 }
 
-fn eval_def(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_def(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() != 2 {
-        return Err(EvalError::ArityError("def requires exactly 2 arguments".to_string()));
+        let pos = if args.is_empty() { 
+            Position::new(1, 1) // fallback position
+        } else { 
+            args[0].position.clone() 
+        };
+        return Err(EvalError::ArityError("def requires exactly 2 arguments".to_string(), pos));
     }
     
-    let name = match &args[0] {
-        Expr::Symbol(s) => s.clone(),
-        _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string())),
+    let name = match &args[0].expr_type {
+        ExprType::Symbol(s) => s.clone(),
+        _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string(), args[0].position.clone())),
     };
     
-    let value = eval_expr(&args[1], env)?;
+    let value = eval_expr_with_stack(&args[1], env, stack)?;
     env.define(&name, value.clone());
     Ok(value)
 }
 
-fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_defn(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 3 {
-        return Err(EvalError::ArityError("defn requires at least 3 arguments".to_string()));
+        let pos = if args.is_empty() { 
+            Position::new(1, 1) // fallback position
+        } else { 
+            args[0].position.clone() 
+        };
+        return Err(EvalError::ArityError("defn requires at least 3 arguments".to_string(), pos));
     }
     
-    let name = match &args[0] {
-        Expr::Symbol(s) => s.clone(),
-        _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string())),
+    let name = match &args[0].expr_type {
+        ExprType::Symbol(s) => s.clone(),
+        _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string(), args[0].position.clone())),
     };
     
-    let params = match &args[1] {
-        Expr::List(param_exprs) => {
+    let params = match &args[1].expr_type {
+        ExprType::List(param_exprs) => {
             let mut params = Vec::new();
             for param_expr in param_exprs {
-                match param_expr {
-                    Expr::Symbol(s) => params.push(s.clone()),
-                    _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string())),
+                match &param_expr.expr_type {
+                    ExprType::Symbol(s) => params.push(s.clone()),
+                    _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string(), param_expr.position.clone())),
                 }
             }
             params
         }
-        _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string())),
+        _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string(), args[1].position.clone())),
     };
     
     let body = args[2..].to_vec();
@@ -564,23 +620,28 @@ fn eval_defn(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
     Ok(lambda)
 }
 
-fn eval_lambda(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_lambda(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 2 {
-        return Err(EvalError::ArityError("lambda requires at least 2 arguments".to_string()));
+        let pos = if args.is_empty() { 
+            Position::new(1, 1)
+        } else { 
+            args[0].position.clone() 
+        };
+        return Err(EvalError::ArityError("lambda requires at least 2 arguments".to_string(), pos));
     }
     
-    let params = match &args[0] {
-        Expr::List(param_exprs) => {
+    let params = match &args[0].expr_type {
+        ExprType::List(param_exprs) => {
             let mut params = Vec::new();
             for param_expr in param_exprs {
-                match param_expr {
-                    Expr::Symbol(s) => params.push(s.clone()),
-                    _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string())),
+                match &param_expr.expr_type {
+                    ExprType::Symbol(s) => params.push(s.clone()),
+                    _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string(), param_expr.position.clone())),
                 }
             }
             params
         }
-        _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string())),
+        _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string(), args[0].position.clone())),
     };
     
     let body = args[1..].to_vec();
@@ -592,64 +653,69 @@ fn eval_lambda(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError>
     })
 }
 
-fn eval_do(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_do(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     let mut result = Value::Nil;
     for expr in args {
-        result = eval_expr(expr, env)?;
+        result = eval_expr_with_stack(expr, env, stack)?;
     }
     Ok(result)
 }
 
-fn eval_if(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_if(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 2 || args.len() > 3 {
-        return Err(EvalError::ArityError("if requires 2 or 3 arguments (condition, then, optional else)".to_string()));
+        let pos = if args.is_empty() { 
+            Position::new(1, 1)
+        } else { 
+            args[0].position.clone() 
+        };
+        return Err(EvalError::ArityError("if requires 2 or 3 arguments (condition, then, optional else)".to_string(), pos));
     }
     
-    let condition = eval_expr(&args[0], env)?;
+    let condition = eval_expr_with_stack(&args[0], env, stack)?;
     
     if is_truthy(&condition) {
         // Evaluate then branch
-        eval_expr(&args[1], env)
+        eval_expr_with_stack(&args[1], env, stack)
     } else if args.len() == 3 {
         // Evaluate else branch
-        eval_expr(&args[2], env)
+        eval_expr_with_stack(&args[2], env, stack)
     } else {
         // No else branch, return nil
         Ok(Value::Nil)
     }
 }
 
-fn eval_cond(args: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_cond(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     for clause in args {
-        match clause {
-            Expr::List(clause_elements) => {
+        match &clause.expr_type {
+            ExprType::List(clause_elements) => {
                 if clause_elements.len() < 2 {
-                    return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string()));
+                    return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string(), clause.position.clone()));
                 }
                 
                 let condition_expr = &clause_elements[0];
                 let result_exprs = &clause_elements[1..];
                 
                 // Check for 'else' clause (special symbol that's always true)
-                let is_else_clause = matches!(condition_expr, Expr::Symbol(s) if s == "else");
+                let is_else_clause = matches!(&condition_expr.expr_type, ExprType::Symbol(s) if s == "else");
                 
                 let condition_result = if is_else_clause {
-                    Value::Number(1.0) // else is always true
+                    Value::Boolean(true) // else is always true
                 } else {
-                    eval_expr(condition_expr, env)?
+                    eval_expr_with_stack(condition_expr, env, stack)?
                 };
                 
                 if is_truthy(&condition_result) {
                     // Execute all expressions in the clause, return the last result
                     let mut result = Value::Nil;
                     for expr in result_exprs {
-                        result = eval_expr(expr, env)?;
+                        result = eval_expr_with_stack(expr, env, stack)?;
                     }
                     return Ok(result);
                 }
             }
             _ => {
-                return Err(EvalError::TypeError("cond clauses must be lists".to_string()));
+                return Err(EvalError::TypeError("cond clauses must be lists".to_string(), clause.position.clone()));
             }
         }
     }
@@ -669,7 +735,7 @@ fn is_truthy(value: &Value) -> bool {
     }
 }
 
-fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value, EvalError> {
+fn eval_function_call(elements: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if elements.is_empty() {
         return Ok(Value::List(vec![]));
     }
@@ -677,27 +743,45 @@ fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value,
     let func_expr = &elements[0];
     let args_exprs = &elements[1..];
     
+    // Get function name for stack trace
+    let func_name = match &func_expr.expr_type {
+        ExprType::Symbol(name) => name.clone(),
+        _ => "<anonymous>".to_string(),
+    };
+    
     // Evaluate function
-    let func = eval_expr(func_expr, env)?;
+    let func = eval_expr_with_stack(func_expr, env, stack)?;
     
     // Evaluate arguments
     let mut args = Vec::new();
     for arg_expr in args_exprs {
-        args.push(eval_expr(arg_expr, env)?);
+        args.push(eval_expr_with_stack(arg_expr, env, stack)?);
     }
     
     // Call function
     match func {
-        Value::Function(f) => f(&args),
+        Value::Function(f) => {
+            f(&args).map_err(|mut err| {
+                err.set_position(func_expr.position.clone());
+                err
+            })
+        },
         Value::Lambda { params, body, mut closure } => {
             // Check arity
             if args.len() != params.len() {
                 return Err(EvalError::ArityError(format!(
-                    "Function expects {} arguments, got {}",
+                    "Function {} expects {} arguments, got {}",
+                    func_name,
                     params.len(),
                     args.len()
-                )));
+                ), func_expr.position.clone()));
             }
+            
+            // Add to stack trace
+            stack.push(StackFrame {
+                function_name: func_name,
+                position: func_expr.position.clone(),
+            });
             
             // Merge current environment into closure for recursive calls
             for (name, value) in &env.bindings {
@@ -714,11 +798,14 @@ fn eval_function_call(elements: &[Expr], env: &mut Environment) -> Result<Value,
             // Evaluate body expressions in sequence, return last result
             let mut result = Value::Nil;
             for expr in &body {
-                result = eval_expr(expr, &mut closure)?;
+                result = eval_expr_with_stack(expr, &mut closure, stack)?;
             }
+            
+            // Remove from stack trace
+            stack.pop();
             Ok(result)
         }
-        _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func))),
+        _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func), func_expr.position.clone())),
     }
 }
 
@@ -758,12 +845,38 @@ impl std::fmt::Display for Value {
 impl std::fmt::Display for EvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EvalError::UndefinedSymbol(s) => write!(f, "Undefined symbol: {}", s),
-            EvalError::TypeError(msg) => write!(f, "Type error: {}", msg),
-            EvalError::ArityError(msg) => write!(f, "Arity error: {}", msg),
-            EvalError::DivisionByZero => write!(f, "Division by zero"),
-            EvalError::InvalidFunction(msg) => write!(f, "Invalid function: {}", msg),
+            EvalError::UndefinedSymbol(s, pos) => {
+                write!(f, "Undefined symbol '{}' at line {}, column {}", s, pos.line, pos.column)
+            }
+            EvalError::TypeError(msg, pos) => {
+                write!(f, "Type error at line {}, column {}: {}", pos.line, pos.column, msg)
+            }
+            EvalError::ArityError(msg, pos) => {
+                write!(f, "Arity error at line {}, column {}: {}", pos.line, pos.column, msg)
+            }
+            EvalError::DivisionByZero(pos) => {
+                write!(f, "Division by zero at line {}, column {}", pos.line, pos.column)
+            }
+            EvalError::InvalidFunction(msg, pos) => {
+                write!(f, "Invalid function at line {}, column {}: {}", pos.line, pos.column, msg)
+            }
         }
+    }
+}
+
+impl std::fmt::Display for EvalErrorWithStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.error)?;
+        
+        if !self.stack_trace.is_empty() {
+            writeln!(f, "\nStack trace:")?;
+            for (i, frame) in self.stack_trace.iter().enumerate() {
+                writeln!(f, "  {}: {} (line {}, column {})", 
+                        i + 1, frame.function_name, frame.position.line, frame.position.column)?;
+            }
+        }
+        
+        Ok(())
     }
 }
 
