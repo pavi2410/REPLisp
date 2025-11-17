@@ -1,6 +1,7 @@
 /// JVM bytecode instructions for Java 8
 /// Based on the Java Virtual Machine Specification (Java SE 8 Edition)
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Opcode {
     // Constants
