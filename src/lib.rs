@@ -7,12 +7,14 @@ pub mod evaluator;
 pub mod builtins;
 pub mod repl;
 pub mod file_exec;
+pub mod codegen;
 
 // Re-export commonly used types
 pub use value::Value;
 pub use error::{EvalError, EvalErrorWithStack};
 pub use environment::Environment;
 pub use evaluator::eval_expr;
+pub use codegen::Compiler;
 
 #[cfg(test)]
 mod test_line_numbers;
