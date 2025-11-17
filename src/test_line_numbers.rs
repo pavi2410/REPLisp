@@ -1,6 +1,7 @@
 use crate::tokenizer::tokenize;
 use crate::parser::parse;
-use crate::evaluator::{eval_expr_with_stack, Environment};
+use crate::evaluator::eval_expr_with_stack;
+use crate::environment::Environment;
 
 #[cfg(test)]
 mod tests {
