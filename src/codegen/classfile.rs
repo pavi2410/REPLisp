@@ -218,6 +218,12 @@ impl ConstantPool {
         index
     }
 
+    pub fn add_interface_methodref(&mut self, class: String, name: String, descriptor: String) -> u16 {
+        let class_index = self.add_class(class);
+        let nat_index = self.add_name_and_type(name, descriptor);
+        self.add_entry(ConstantPoolEntry::InterfaceMethodref(class_index, nat_index))
+    }
+
     pub fn add_fieldref(&mut self, class: String, name: String, descriptor: String) -> u16 {
         let class_index = self.add_class(class);
         let nat_index = self.add_name_and_type(name, descriptor);
@@ -383,7 +389,7 @@ pub struct ClassFile {
 impl ClassFile {
     pub fn new(class_name: String) -> Self {
         ClassFile {
-            version: (0, 50), // Java 6 (no stackmap frames required)
+            version: (0, 52), // Java 8
             constant_pool: ConstantPool::new(),
             access_flags: AccessFlags::public_class(),
             this_class: class_name,

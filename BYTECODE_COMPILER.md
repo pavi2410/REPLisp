@@ -1,6 +1,6 @@
 # REPLisp Java Bytecode Compiler
 
-This document describes the Java bytecode compiler for REPLisp, which compiles REPLisp source code to JVM bytecode targeting Java 6+.
+This document describes the Java bytecode compiler for REPLisp, which compiles REPLisp source code to JVM bytecode targeting **Java 8**.
 
 ## Usage
 
@@ -19,148 +19,50 @@ Specify a custom output file:
 java MyProgram
 ```
 
-## Architecture
+## Supported Features ✅
 
-The bytecode compiler consists of three main components:
-
-### 1. Bytecode Module (`src/codegen/bytecode.rs`)
-- Defines JVM opcodes and instruction encoding
-- Implements the JVM instruction set for Java 8
-- Provides `encode()` method to convert opcodes to byte sequences
-
-### 2. Class File Module (`src/codegen/classfile.rs`)
-- Implements the JVM class file format
-- Manages the constant pool with proper indexing (accounting for double-width entries)
-- Generates valid `.class` files conforming to Java 6 specification
-- Handles fields, methods, and attributes
-
-### 3. Compiler Module (`src/codegen/compiler.rs`)
-- Compiles REPLisp AST to JVM bytecode
-- Maps REPLisp values to Java objects (boxed primitives)
-- Generates a main method that executes the compiled code
-
-## Supported Features
-
-The bytecode compiler currently supports:
-
-✅ **Numbers**: Compiled to `java.lang.Double` objects
-✅ **Strings**: Compiled to `java.lang.String` objects
-✅ **Booleans**: Mapped to `java.lang.Boolean.TRUE/FALSE`
-✅ **Nil**: Mapped to `null`
-✅ **Arithmetic**: `+`, `-`, `*`, `/` operations on numbers
-✅ **Comparisons**: `=`, `<`, `>`, `<=`, `>=` operations
-✅ **Variables**: `def` creates static fields
-✅ **Conditionals**: `if` expressions with proper branching
-✅ **Sequencing**: `do` blocks
-✅ **I/O**: `print` function
-
-## Limitations
-
-The following features are not yet implemented:
-
-❌ **Functions**: `defn`, `lambda`, function calls
-❌ **Lists**: List operations and data structures
-❌ **Closures**: Lexical scope capture
-❌ **Recursion**: Tail-call optimization
-❌ **Advanced special forms**: `cond`, `quote`
-
-## Value Representation
-
-REPLisp values are represented as Java objects:
-
-- **Numbers** (`f64`) → `java.lang.Double`
-- **Strings** → `java.lang.String`
-- **Booleans** → `java.lang.Boolean`
-- **Nil** → `null`
-
-All values are boxed to enable uniform handling on the JVM stack.
-
-## Technical Details
-
-### Class File Format
-- **Magic**: `0xCAFEBABE`
-- **Version**: `50.0` (Java 6) - avoids stackmap frame requirements
-- **Super class**: `java.lang.Object`
-- **Main method**: `public static void main(String[] args)`
-
-### Constant Pool
-- Properly handles double-width entries (Long, Double)
-- Caches entries to avoid duplicates
-- Indices start at 1 (JVM convention)
-
-### Compilation Strategy
-- Stack-based compilation model
-- Each expression pushes a result onto the stack
-- Method bytecode includes conservative stack depth calculations
-- Global variables stored as static fields
-
-### Bytecode Generation
-- Numbers: `ldc2_w` (load double constant) → `invokestatic Double.valueOf`
-- Strings: `ldc_w` (load string constant)
-- Arithmetic: Unbox → primitive operation → Box
-- Comparisons: `dcmpl` (double compare) → conditional branch
-- If: Branch with proper offset calculation
+- **Numbers, Strings, Booleans, Nil, Lists**
+- **Arithmetic**: `+`, `-`, `*`, `/`, `mod`
+- **Comparisons**: `=`, `<`, `>`, `<=`, `>=`
+- **Variables**: `def`
+- **Functions**: `defn`, `lambda` (as static methods)
+- **Function calls** with recursion support
+- **Lists**: `list`, `car`, `length`, `cons`, `null?`
+- **Control flow**: `if`, `do`
+- **I/O**: `print`
 
 ## Example
 
-Input (`test.lisp`):
 ```lisp
-(print "Hello from REPLisp!")
-(def x 42)
-(print (+ x 8))
-(print (if (< x 50) "small" "large"))
+(defn square (x)
+  (* x x))
+
+(print (square 5))     ; 25.0
+
+(def mylist (list 1 2 3))
+(print (car mylist))   ; 1.0
+(print (length mylist)); 3.0
 ```
 
-Compilation:
+## Running
+
+Standard execution:
 ```bash
-./target/release/replisp --compile test.lisp
+java Main
 ```
 
-Output:
-```
-Hello from REPLisp!
-50.0
-small
-```
-
-## Future Work
-
-Priority enhancements:
-1. **Function support**: Implement `defn`, `lambda`, and function calls
-2. **List operations**: Compile list data structures
-3. **Closures**: Capture and compile lexical environments
-4. **Optimization**: Reduce boxing/unboxing overhead
-5. **Stackmap frames**: Support Java 7+ with proper verification
-6. **Error handling**: Better compilation error messages
-
-## Development
-
-To modify the bytecode compiler:
-
-1. **Add opcodes**: Update `bytecode.rs` with new instructions
-2. **Extend compilation**: Add methods to `compiler.rs` for new expressions
-3. **Test**: Create test files and verify with `java -noverify` for debugging
-
-## Testing
-
-Run the test suite:
+With verification disabled (recommended for now):
 ```bash
-cargo test
+java -noverify Main
 ```
 
-Test a specific file:
-```bash
-./target/release/replisp --compile test.lisp
-java -noverify Main  # Disable verification for debugging
-```
+Note: Stackmap frame generation not yet implemented. Use `-noverify` for complex control flow.
 
-Inspect generated bytecode:
-```bash
-javap -v Main
-```
+## Details
 
-## References
+- **Class version**: 52.0 (Java 8)
+- **Values**: Boxed as Java objects (Double, String, Boolean, ArrayList)
+- **Functions**: Compiled to `public static` methods
+- **Two-pass compilation**: Register functions, then compile bodies
 
-- [Java Virtual Machine Specification (Java SE 8)](https://docs.oracle.com/javase/specs/jvms/se8/html/)
-- [JVM Class File Format](https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html)
-- [JVM Instruction Set](https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-6.html)
+See full documentation in the source code.
