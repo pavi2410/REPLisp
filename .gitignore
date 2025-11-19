@@ -1,2 +1,8 @@
 
 target/
+
+# Generated test files
+*.class
+*.wasm
+test_*.lisp
+test_*.js
