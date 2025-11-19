@@ -932,3 +932,22 @@ impl Compiler {
         Ok(Opcode::Getstatic(field_ref).encode())
     }
 }
+
+// Implement the CodegenBackend trait for JVM compiler
+impl crate::codegen::backend::CodegenBackend for Compiler {
+    fn new(name: String) -> Self {
+        Compiler::new(name)
+    }
+
+    fn compile(&mut self, exprs: &[Expr]) -> Result<Vec<u8>, String> {
+        self.compile(exprs)
+    }
+
+    fn file_extension(&self) -> &str {
+        "class"
+    }
+
+    fn backend_name(&self) -> &str {
+        "JVM"
+    }
+}
