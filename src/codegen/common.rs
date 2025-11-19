@@ -198,12 +198,12 @@ pub fn is_builtin(expr: &Expr) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenizer::{tokenize, Position};
+    use crate::tokenizer::tokenize;
     use crate::parser::Parser;
 
     #[test]
     fn test_extract_function_definitions() {
-        let source = "(defn add [x y] (+ x y)) (defn square [x] (* x x))";
+        let source = "(defn add (x y) (+ x y)) (defn square (x) (* x x))";
         let tokens = tokenize(source).unwrap();
         let mut parser = Parser::new(tokens);
         let exprs = parser.parse().unwrap();
