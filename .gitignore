@@ -6,3 +6,4 @@ target/
 *.wasm
 test_*.lisp
 test_*.js
+.DS_Store

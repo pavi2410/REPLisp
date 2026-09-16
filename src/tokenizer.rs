@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
@@ -7,6 +7,19 @@ pub struct Position {
 impl Position {
     pub fn new(line: usize, column: usize) -> Self {
         Self { line, column }
+    }
+
+    pub fn start() -> Self {
+        Self::new(1, 1)
+    }
+
+    pub fn advance(&mut self, ch: char) {
+        if ch == '\n' {
+            self.line += 1;
+            self.column = 1;
+        } else {
+            self.column += 1;
+        }
     }
 }
 
@@ -51,8 +64,7 @@ pub struct Tokenizer {
     input: Vec<char>,
     position: usize,
     current_char: Option<char>,
-    line: usize,
-    column: usize,
+    loc: Position,
 }
 
 impl Tokenizer {
@@ -64,27 +76,17 @@ impl Tokenizer {
             input: chars,
             position: 0,
             current_char,
-            line: 1,
-            column: 1,
+            loc: Position::start(),
         }
     }
     
     fn advance(&mut self) {
         if let Some(ch) = self.current_char {
-            if ch == '\n' {
-                self.line += 1;
-                self.column = 1;
-            } else {
-                self.column += 1;
-            }
+            self.loc.advance(ch);
         }
         
         self.position += 1;
         self.current_char = self.input.get(self.position).copied();
-    }
-    
-    fn current_position(&self) -> Position {
-        Position::new(self.line, self.column)
     }
     
     fn peek(&self) -> Option<char> {
@@ -103,7 +105,7 @@ impl Tokenizer {
     
     fn read_number(&mut self) -> Token {
         let start = self.position;
-        let pos = self.current_position();
+        let pos = self.loc;
 
         // Handle negative numbers
         if self.current_char == Some('-') {
@@ -125,7 +127,7 @@ impl Tokenizer {
     }
     
     fn read_string(&mut self) -> Token {
-        let pos = self.current_position();
+        let pos = self.loc;
         self.advance(); // Skip opening quote
         let start = self.position;
         
@@ -148,7 +150,7 @@ impl Tokenizer {
     
     fn read_symbol(&mut self) -> Token {
         let start = self.position;
-        let pos = self.current_position();
+        let pos = self.loc;
         
         while let Some(ch) = self.current_char {
             if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) {
@@ -163,7 +165,7 @@ impl Tokenizer {
     }
     
     fn read_comment(&mut self) -> Token {
-        let pos = self.current_position();
+        let pos = self.loc;
         self.advance(); // Skip semicolon
         let start = self.position;
         
@@ -181,7 +183,7 @@ impl Tokenizer {
     pub fn next_token(&mut self) -> Token {
         loop {
             match self.current_char {
-                None => return Token::new(TokenType::Eof, self.current_position()),
+                None => return Token::new(TokenType::Eof, self.loc),
                 
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
@@ -189,19 +191,19 @@ impl Tokenizer {
                 }
                 
                 Some('(') => {
-                    let pos = self.current_position();
+                    let pos = self.loc;
                     self.advance();
                     return Token::new(TokenType::LeftParen, pos);
                 }
                 
                 Some(')') => {
-                    let pos = self.current_position();
+                    let pos = self.loc;
                     self.advance();
                     return Token::new(TokenType::RightParen, pos);
                 }
                 
                 Some('\'') => {
-                    let pos = self.current_position();
+                    let pos = self.loc;
                     self.advance();
                     return Token::new(TokenType::Quote, pos);
                 }
@@ -230,7 +232,7 @@ impl Tokenizer {
 
                 Some(_) => {
                     // If we reach here, it's an unknown token
-                    let pos = self.current_position();
+                    let pos = self.loc;
                     let unknown_char = self.current_char.unwrap();
                     self.advance();
                     return Token::new(TokenType::Unknown(unknown_char.to_string()), pos);
