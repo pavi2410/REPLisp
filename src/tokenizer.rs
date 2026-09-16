@@ -103,27 +103,40 @@ impl Tokenizer {
         }
     }
     
-    fn read_number(&mut self) -> Token {
+    fn read_number(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
         let pos = self.loc;
 
-        // Handle negative numbers
         if self.current_char == Some('-') {
             self.advance();
         }
-        
+
+        let mut seen_dot = false;
+        let mut extra_dot = false;
+
         while let Some(ch) = self.current_char {
-            if ch.is_ascii_digit() || ch == '.' {
+            if ch.is_ascii_digit() {
+                self.advance();
+            } else if ch == '.' {
+                if seen_dot {
+                    extra_dot = true;
+                }
+                seen_dot = true;
                 self.advance();
             } else {
                 break;
             }
         }
-        
+
         let number_str: String = self.input[start..self.position].iter().collect();
-        let number = number_str.parse::<f64>().unwrap_or(0.0);
-        
-        Token::new(TokenType::Number(number), pos)
+        if extra_dot {
+            return Err(TokenizeError::InvalidNumber(number_str, pos));
+        }
+
+        match number_str.parse::<f64>() {
+            Ok(number) => Ok(Token::new(TokenType::Number(number), pos)),
+            Err(_) => Err(TokenizeError::InvalidNumber(number_str, pos)),
+        }
     }
     
     fn read_string(&mut self) -> Token {
@@ -180,10 +193,10 @@ impl Tokenizer {
         Token::new(TokenType::Comment(comment), pos)
     }
     
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Result<Token, TokenizeError> {
         loop {
             match self.current_char {
-                None => return Token::new(TokenType::Eof, self.loc),
+                None => return Ok(Token::new(TokenType::Eof, self.loc)),
                 
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
@@ -193,23 +206,23 @@ impl Tokenizer {
                 Some('(') => {
                     let pos = self.loc;
                     self.advance();
-                    return Token::new(TokenType::LeftParen, pos);
+                    return Ok(Token::new(TokenType::LeftParen, pos));
                 }
                 
                 Some(')') => {
                     let pos = self.loc;
                     self.advance();
-                    return Token::new(TokenType::RightParen, pos);
+                    return Ok(Token::new(TokenType::RightParen, pos));
                 }
                 
                 Some('\'') => {
                     let pos = self.loc;
                     self.advance();
-                    return Token::new(TokenType::Quote, pos);
+                    return Ok(Token::new(TokenType::Quote, pos));
                 }
                 
                 Some('"') => {
-                    return self.read_string();
+                    return Ok(self.read_string());
                 }
                 
                 Some(';') => {
@@ -227,7 +240,7 @@ impl Tokenizer {
                 }
                 
                 Some(ch) if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) => {
-                    return self.read_symbol();
+                    return Ok(self.read_symbol());
                 }
 
                 Some(_) => {
@@ -235,7 +248,7 @@ impl Tokenizer {
                     let pos = self.loc;
                     let unknown_char = self.current_char.unwrap();
                     self.advance();
-                    return Token::new(TokenType::Unknown(unknown_char.to_string()), pos);
+                    return Ok(Token::new(TokenType::Unknown(unknown_char.to_string()), pos));
                 }
             }
         }
@@ -245,6 +258,7 @@ impl Tokenizer {
 #[derive(Debug)]
 pub enum TokenizeError {
     Unknown(Token),
+    InvalidNumber(String, Position),
 }
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
@@ -252,7 +266,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     let mut tokens = Vec::new();
     
     loop {
-        let token = tokenizer.next_token();
+        let token = tokenizer.next_token()?;
         let is_eof = matches!(token.token_type, TokenType::Eof);
 
         if matches!(token.token_type, TokenType::Unknown(_)) {
@@ -279,8 +293,68 @@ impl std::fmt::Display for TokenizeError {
                     token.position.line, token.position.column, token.token_type
                 )
             }
+            TokenizeError::InvalidNumber(lexeme, pos) => {
+                write!(
+                    f,
+                    "Invalid number '{}' at line {}, column {}",
+                    lexeme, pos.line, pos.column
+                )
+            }
         }
     }
 }
 
 impl std::error::Error for TokenizeError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn numbers(input: &str) -> Vec<f64> {
+        tokenize(input)
+            .unwrap()
+            .into_iter()
+            .filter_map(|t| match t.token_type {
+                TokenType::Number(n) => Some(n),
+                TokenType::Eof => None,
+                other => panic!("unexpected token {other:?}"),
+            })
+            .collect()
+    }
+
+    fn invalid_number(input: &str) -> String {
+        match tokenize(input) {
+            Err(TokenizeError::InvalidNumber(lexeme, _)) => lexeme,
+            other => panic!("expected InvalidNumber, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_valid_numbers() {
+        assert_eq!(numbers("42"), vec![42.0]);
+        assert_eq!(numbers("3.14"), vec![3.14]);
+        assert_eq!(numbers("-2.5"), vec![-2.5]);
+        assert_eq!(numbers("0"), vec![0.0]);
+        assert_eq!(numbers("1.0"), vec![1.0]);
+    }
+
+    #[test]
+    fn rejects_multiple_dots() {
+        assert_eq!(invalid_number("1.2.3"), "1.2.3");
+        assert_eq!(invalid_number("-1.2.3"), "-1.2.3");
+        assert_eq!(invalid_number("1..2"), "1..2");
+        assert_eq!(invalid_number("1.2."), "1.2.");
+    }
+
+    #[test]
+    fn invalid_number_includes_position() {
+        let err = tokenize("(+ 1.2.3)").unwrap_err();
+        match err {
+            TokenizeError::InvalidNumber(lexeme, pos) => {
+                assert_eq!(lexeme, "1.2.3");
+                assert_eq!(pos, Position::new(1, 4));
+            }
+            other => panic!("expected InvalidNumber, got {other:?}"),
+        }
+    }
+}
