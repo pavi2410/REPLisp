@@ -31,7 +31,7 @@ pub fn eval_function_call(elements: &[Expr], env: &mut Environment, stack: &mut 
     match func {
         Value::Function(f) => {
             f(&args).map_err(|mut err| {
-                err.set_position(func_expr.position.clone());
+                err.set_span(func_expr.span);
                 err
             })
         },
@@ -43,13 +43,13 @@ pub fn eval_function_call(elements: &[Expr], env: &mut Environment, stack: &mut 
                     func_name,
                     params.len(),
                     args.len()
-                ), func_expr.position.clone()));
+                ), func_expr.span));
             }
             
             // Add to stack trace
             stack.push(StackFrame {
                 function_name: func_name,
-                position: func_expr.position.clone(),
+                span: func_expr.span,
             });
             
             // Merge current environment into closure for recursive calls
@@ -74,6 +74,6 @@ pub fn eval_function_call(elements: &[Expr], env: &mut Environment, stack: &mut 
             stack.pop();
             Ok(result)
         }
-        _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func), func_expr.position.clone())),
+        _ => Err(EvalError::InvalidFunction(format!("Not a function: {:?}", func), func_expr.span)),
     }
 }

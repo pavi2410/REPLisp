@@ -31,7 +31,7 @@ fn eval_symbol(symbol: &str, env: &Environment, expr: &Expr) -> Result<Value, Ev
         "false" => Ok(Value::Boolean(false)),
         _ => env.lookup(symbol)
             .cloned()
-            .ok_or_else(|| EvalError::UndefinedSymbol(symbol.to_string(), expr.position.clone()))
+            .ok_or_else(|| EvalError::UndefinedSymbol(symbol.to_string(), expr.span))
     }
 }
 

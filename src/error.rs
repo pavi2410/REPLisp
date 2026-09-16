@@ -1,38 +1,38 @@
-use crate::tokenizer::Position;
+use crate::tokenizer::{LineIndex, Position, Span};
 
 #[derive(Debug, Clone)]
 pub struct StackFrame {
     pub function_name: String,
-    pub position: Position,
+    pub span: Span,
 }
 
 #[derive(Debug)]
 pub enum EvalError {
-    UndefinedSymbol(String, Position),
-    TypeError(String, Position),
-    ArityError(String, Position),
-    DivisionByZero(Position),
-    InvalidFunction(String, Position),
+    UndefinedSymbol(String, Span),
+    TypeError(String, Span),
+    ArityError(String, Span),
+    DivisionByZero(Span),
+    InvalidFunction(String, Span),
 }
 
 impl EvalError {
-    pub fn position(&self) -> &Position {
+    pub fn span(&self) -> Span {
         match self {
-            EvalError::UndefinedSymbol(_, pos) => pos,
-            EvalError::TypeError(_, pos) => pos,
-            EvalError::ArityError(_, pos) => pos,
-            EvalError::DivisionByZero(pos) => pos,
-            EvalError::InvalidFunction(_, pos) => pos,
+            EvalError::UndefinedSymbol(_, span) => *span,
+            EvalError::TypeError(_, span) => *span,
+            EvalError::ArityError(_, span) => *span,
+            EvalError::DivisionByZero(span) => *span,
+            EvalError::InvalidFunction(_, span) => *span,
         }
     }
     
-    pub fn set_position(&mut self, new_pos: Position) {
+    pub fn set_span(&mut self, new_span: Span) {
         match self {
-            EvalError::UndefinedSymbol(_, pos) => *pos = new_pos,
-            EvalError::TypeError(_, pos) => *pos = new_pos,
-            EvalError::ArityError(_, pos) => *pos = new_pos,
-            EvalError::DivisionByZero(pos) => *pos = new_pos,
-            EvalError::InvalidFunction(_, pos) => *pos = new_pos,
+            EvalError::UndefinedSymbol(_, span) => *span = new_span,
+            EvalError::TypeError(_, span) => *span = new_span,
+            EvalError::ArityError(_, span) => *span = new_span,
+            EvalError::DivisionByZero(span) => *span = new_span,
+            EvalError::InvalidFunction(_, span) => *span = new_span,
         }
     }
     
@@ -40,6 +40,31 @@ impl EvalError {
         EvalErrorWithStack {
             error: self,
             stack_trace: stack.to_vec(),
+        }
+    }
+
+    pub fn display(&self, source: &str) -> String {
+        let loc = LineIndex::new(source).position(self.span().start);
+        self.format_at(loc)
+    }
+
+    fn format_at(&self, loc: Position) -> String {
+        match self {
+            EvalError::UndefinedSymbol(s, _) => {
+                format!("Undefined symbol '{}' at line {}, column {}", s, loc.line, loc.column)
+            }
+            EvalError::TypeError(msg, _) => {
+                format!("Type error at line {}, column {}: {}", loc.line, loc.column, msg)
+            }
+            EvalError::ArityError(msg, _) => {
+                format!("Arity error at line {}, column {}: {}", loc.line, loc.column, msg)
+            }
+            EvalError::DivisionByZero(_) => {
+                format!("Division by zero at line {}, column {}", loc.line, loc.column)
+            }
+            EvalError::InvalidFunction(msg, _) => {
+                format!("Invalid function at line {}, column {}: {}", loc.line, loc.column, msg)
+            }
         }
     }
 }
@@ -50,40 +75,43 @@ pub struct EvalErrorWithStack {
     pub stack_trace: Vec<StackFrame>,
 }
 
-impl std::fmt::Display for EvalError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EvalError::UndefinedSymbol(s, pos) => {
-                write!(f, "Undefined symbol '{}' at line {}, column {}", s, pos.line, pos.column)
-            }
-            EvalError::TypeError(msg, pos) => {
-                write!(f, "Type error at line {}, column {}: {}", pos.line, pos.column, msg)
-            }
-            EvalError::ArityError(msg, pos) => {
-                write!(f, "Arity error at line {}, column {}: {}", pos.line, pos.column, msg)
-            }
-            EvalError::DivisionByZero(pos) => {
-                write!(f, "Division by zero at line {}, column {}", pos.line, pos.column)
-            }
-            EvalError::InvalidFunction(msg, pos) => {
-                write!(f, "Invalid function at line {}, column {}: {}", pos.line, pos.column, msg)
+impl EvalErrorWithStack {
+    pub fn display(&self, source: &str) -> String {
+        let lines = LineIndex::new(source);
+        let mut out = self.error.display(source);
+        if !self.stack_trace.is_empty() {
+            out.push_str("\n\nStack trace:\n");
+            for (i, frame) in self.stack_trace.iter().enumerate() {
+                let loc = lines.position(frame.span.start);
+                out.push_str(&format!(
+                    "  {}: {} (line {}, column {})\n",
+                    i + 1, frame.function_name, loc.line, loc.column
+                ));
             }
         }
+        out
+    }
+}
+
+impl std::fmt::Display for EvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.format_at(Position::start()))
     }
 }
 
 impl std::fmt::Display for EvalErrorWithStack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.error)?;
-        
+        write!(f, "{}", self.error)?;
         if !self.stack_trace.is_empty() {
-            writeln!(f, "\nStack trace:")?;
+            writeln!(f, "\n\nStack trace:")?;
             for (i, frame) in self.stack_trace.iter().enumerate() {
-                writeln!(f, "  {}: {} (line {}, column {})", 
-                        i + 1, frame.function_name, frame.position.line, frame.position.column)?;
+                writeln!(
+                    f,
+                    "  {}: {} (offset {})",
+                    i + 1, frame.function_name, frame.span.start
+                )?;
             }
         }
-        
         Ok(())
     }
 }

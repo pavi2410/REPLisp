@@ -114,13 +114,13 @@ fn eval_input(input: &str, env: &Rc<RefCell<Environment>>, debug: bool) {
                     }
                     Err(err) => {
                         let error_with_stack = err.with_stack(&stack);
-                        eprintln!("Evaluation error: {error_with_stack}");
+                        eprintln!("Evaluation error: {}", error_with_stack.display(input));
                     }
                 }
             }
         }
         Err(err) => {
-            eprintln!("Parse error: {err}");
+            eprintln!("Parse error: {}", err.display(input));
         }
     }
 }

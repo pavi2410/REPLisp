@@ -1,7 +1,7 @@
 use crate::environment::Environment;
 use crate::value::Value;
 use crate::error::EvalError;
-use crate::tokenizer::Position;
+use crate::tokenizer::Span;
 
 pub fn register(env: &mut Environment) {
     env.define("not", Value::Function(builtin_not));
@@ -22,7 +22,7 @@ fn is_truthy(value: &Value) -> bool {
 
 fn builtin_not(args: &[Value]) -> Result<Value, EvalError> {
     if args.len() != 1 {
-        return Err(EvalError::ArityError("not requires exactly 1 argument".to_string(), Position::new(1, 1)));
+        return Err(EvalError::ArityError("not requires exactly 1 argument".to_string(), Span::point(0)));
     }
     
     let result = !is_truthy(&args[0]);

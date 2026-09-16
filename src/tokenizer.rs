@@ -23,6 +23,44 @@ impl Position {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+
+    pub fn point(offset: usize) -> Self {
+        Self::new(offset, offset)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LineIndex {
+    starts: Vec<usize>,
+}
+
+impl LineIndex {
+    pub fn new(source: &str) -> Self {
+        let mut starts = vec![0];
+        for (i, ch) in source.chars().enumerate() {
+            if ch == '\n' {
+                starts.push(i + 1);
+            }
+        }
+        Self { starts }
+    }
+
+    pub fn position(&self, offset: usize) -> Position {
+        let line = self.starts.partition_point(|&s| s <= offset).saturating_sub(1);
+        Position::new(line + 1, offset - self.starts[line] + 1)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Literals
@@ -51,12 +89,12 @@ pub enum TokenType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
-    pub position: Position,
+    pub span: Span,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, position: Position) -> Self {
-        Self { token_type, position }
+    pub fn new(token_type: TokenType, span: Span) -> Self {
+        Self { token_type, span }
     }
 }
 
@@ -102,10 +140,24 @@ impl Tokenizer {
             }
         }
     }
+
+    fn span_from(&self, start: usize) -> Span {
+        Span::new(start, self.position)
+    }
+
+    fn emit(&self, token_type: TokenType, start: usize) -> Token {
+        Token::new(token_type, self.span_from(start))
+    }
+
+    fn take(&mut self, token_type: TokenType) -> Token {
+        let start = self.position;
+        self.advance();
+        self.emit(token_type, start)
+    }
     
     fn read_number(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
-        let pos = self.loc;
+        let loc = self.loc;
 
         if self.current_char == Some('-') {
             self.advance();
@@ -129,20 +181,21 @@ impl Tokenizer {
         }
 
         let number_str: String = self.input[start..self.position].iter().collect();
+        let span = self.span_from(start);
         if extra_dot {
-            return Err(TokenizeError::InvalidNumber(number_str, pos));
+            return Err(TokenizeError::InvalidNumber(number_str, span, loc));
         }
 
         match number_str.parse::<f64>() {
-            Ok(number) => Ok(Token::new(TokenType::Number(number), pos)),
-            Err(_) => Err(TokenizeError::InvalidNumber(number_str, pos)),
+            Ok(number) => Ok(self.emit(TokenType::Number(number), start)),
+            Err(_) => Err(TokenizeError::InvalidNumber(number_str, span, loc)),
         }
     }
     
     fn read_string(&mut self) -> Token {
-        let pos = self.loc;
-        self.advance(); // Skip opening quote
         let start = self.position;
+        self.advance(); // Skip opening quote
+        let content_start = self.position;
         
         while let Some(ch) = self.current_char {
             if ch == '"' {
@@ -152,18 +205,17 @@ impl Tokenizer {
             self.advance();
         }
         
-        let string_content: String = self.input[start..self.position].iter().collect();
+        let string_content: String = self.input[content_start..self.position].iter().collect();
         
         if self.current_char == Some('"') {
             self.advance(); // Skip closing quote
         }
         
-        Token::new(TokenType::String(string_content), pos)
+        self.emit(TokenType::String(string_content), start)
     }
     
     fn read_symbol(&mut self) -> Token {
         let start = self.position;
-        let pos = self.loc;
         
         while let Some(ch) = self.current_char {
             if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) {
@@ -174,13 +226,13 @@ impl Tokenizer {
         }
         
         let symbol: String = self.input[start..self.position].iter().collect();
-        Token::new(TokenType::Symbol(symbol), pos)
+        self.emit(TokenType::Symbol(symbol), start)
     }
     
     fn read_comment(&mut self) -> Token {
-        let pos = self.loc;
-        self.advance(); // Skip semicolon
         let start = self.position;
+        self.advance(); // Skip semicolon
+        let content_start = self.position;
         
         while let Some(ch) = self.current_char {
             if ch == '\n' {
@@ -189,37 +241,23 @@ impl Tokenizer {
             self.advance();
         }
         
-        let comment: String = self.input[start..self.position].iter().collect();
-        Token::new(TokenType::Comment(comment), pos)
+        let comment: String = self.input[content_start..self.position].iter().collect();
+        self.emit(TokenType::Comment(comment), start)
     }
     
     pub fn next_token(&mut self) -> Result<Token, TokenizeError> {
         loop {
             match self.current_char {
-                None => return Ok(Token::new(TokenType::Eof, self.loc)),
+                None => return Ok(Token::new(TokenType::Eof, Span::point(self.position))),
                 
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
                     continue;
                 }
                 
-                Some('(') => {
-                    let pos = self.loc;
-                    self.advance();
-                    return Ok(Token::new(TokenType::LeftParen, pos));
-                }
-                
-                Some(')') => {
-                    let pos = self.loc;
-                    self.advance();
-                    return Ok(Token::new(TokenType::RightParen, pos));
-                }
-                
-                Some('\'') => {
-                    let pos = self.loc;
-                    self.advance();
-                    return Ok(Token::new(TokenType::Quote, pos));
-                }
+                Some('(') => return Ok(self.take(TokenType::LeftParen)),
+                Some(')') => return Ok(self.take(TokenType::RightParen)),
+                Some('\'') => return Ok(self.take(TokenType::Quote)),
                 
                 Some('"') => {
                     return Ok(self.read_string());
@@ -244,11 +282,8 @@ impl Tokenizer {
                 }
 
                 Some(_) => {
-                    // If we reach here, it's an unknown token
-                    let pos = self.loc;
                     let unknown_char = self.current_char.unwrap();
-                    self.advance();
-                    return Ok(Token::new(TokenType::Unknown(unknown_char.to_string()), pos));
+                    return Ok(self.take(TokenType::Unknown(unknown_char.to_string())));
                 }
             }
         }
@@ -257,8 +292,8 @@ impl Tokenizer {
 
 #[derive(Debug)]
 pub enum TokenizeError {
-    Unknown(Token),
-    InvalidNumber(String, Position),
+    Unknown(Token, Position),
+    InvalidNumber(String, Span, Position),
 }
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
@@ -270,7 +305,8 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
         let is_eof = matches!(token.token_type, TokenType::Eof);
 
         if matches!(token.token_type, TokenType::Unknown(_)) {
-            return Err(TokenizeError::Unknown(token));
+            let loc = LineIndex::new(input).position(token.span.start);
+            return Err(TokenizeError::Unknown(token, loc));
         }
 
         tokens.push(token);
@@ -286,18 +322,18 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
 impl std::fmt::Display for TokenizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenizeError::Unknown(token) => {
+            TokenizeError::Unknown(token, loc) => {
                 write!(
                     f,
                     "Unknown character at line {}, column {}: {:?}",
-                    token.position.line, token.position.column, token.token_type
+                    loc.line, loc.column, token.token_type
                 )
             }
-            TokenizeError::InvalidNumber(lexeme, pos) => {
+            TokenizeError::InvalidNumber(lexeme, _, loc) => {
                 write!(
                     f,
                     "Invalid number '{}' at line {}, column {}",
-                    lexeme, pos.line, pos.column
+                    lexeme, loc.line, loc.column
                 )
             }
         }
@@ -324,7 +360,7 @@ mod tests {
 
     fn invalid_number(input: &str) -> String {
         match tokenize(input) {
-            Err(TokenizeError::InvalidNumber(lexeme, _)) => lexeme,
+            Err(TokenizeError::InvalidNumber(lexeme, _, _)) => lexeme,
             other => panic!("expected InvalidNumber, got {other:?}"),
         }
     }
@@ -347,14 +383,21 @@ mod tests {
     }
 
     #[test]
-    fn invalid_number_includes_position() {
+    fn invalid_number_includes_span() {
         let err = tokenize("(+ 1.2.3)").unwrap_err();
         match err {
-            TokenizeError::InvalidNumber(lexeme, pos) => {
+            TokenizeError::InvalidNumber(lexeme, span, loc) => {
                 assert_eq!(lexeme, "1.2.3");
-                assert_eq!(pos, Position::new(1, 4));
+                assert_eq!(span, Span::new(3, 8));
+                assert_eq!(loc, Position::new(1, 4));
             }
             other => panic!("expected InvalidNumber, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn tokens_cover_source_span() {
+        let tokens = tokenize("3.14").unwrap();
+        assert_eq!(tokens[0].span, Span::new(0, 4));
     }
 }

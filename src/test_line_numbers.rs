@@ -16,10 +16,10 @@ mod tests {
         
         assert!(result.is_err());
         let error = result.unwrap_err();
-        println!("Parse error: {}", error);
+        println!("Parse error: {}", error.display(input));
         
         // Should show line number where the unmatched paren started
-        assert!(error.to_string().contains("line 1"));
+        assert!(error.display(input).contains("line 1"));
     }
 
     #[test]
@@ -46,10 +46,10 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         let error_with_stack = error.with_stack(&stack);
-        println!("Eval error: {}", error_with_stack);
+        println!("Eval error: {}", error_with_stack.display(input));
         
         // Should show line number where the error occurred
-        assert!(error_with_stack.to_string().contains("line"));
+        assert!(error_with_stack.display(input).contains("line"));
     }
 
     #[test]

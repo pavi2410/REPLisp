@@ -102,7 +102,7 @@ fn compile_file(input: &str, output: Option<&str>, target: CompileTarget, debug:
     let exprs = match parser::parse(tokens) {
         Ok(exprs) => exprs,
         Err(e) => {
-            eprintln!("Parse error: {}", e);
+            eprintln!("Parse error: {}", e.display(&source));
             std::process::exit(1);
         }
     };

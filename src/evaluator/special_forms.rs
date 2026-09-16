@@ -2,22 +2,22 @@ use crate::parser::{Expr, ExprType};
 use crate::value::Value;
 use crate::error::{EvalError, StackFrame};
 use crate::environment::Environment;
-use crate::tokenizer::Position;
+use crate::tokenizer::Span;
 use crate::evaluator::eval_expr_with_stack;
 
 pub fn eval_def(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() != 2 {
         let pos = if args.is_empty() { 
-            Position::new(1, 1) // fallback position
+            Span::point(0) // fallback position
         } else { 
-            args[0].position.clone() 
+            args[0].span 
         };
         return Err(EvalError::ArityError("def requires exactly 2 arguments".to_string(), pos));
     }
     
     let name = match &args[0].expr_type {
         ExprType::Symbol(s) => s.clone(),
-        _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string(), args[0].position.clone())),
+        _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string(), args[0].span)),
     };
     
     let value = eval_expr_with_stack(&args[1], env, stack)?;
@@ -28,16 +28,16 @@ pub fn eval_def(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame
 pub fn eval_defn(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 3 {
         let pos = if args.is_empty() { 
-            Position::new(1, 1) // fallback position
+            Span::point(0) // fallback position
         } else { 
-            args[0].position.clone() 
+            args[0].span 
         };
         return Err(EvalError::ArityError("defn requires at least 3 arguments".to_string(), pos));
     }
     
     let name = match &args[0].expr_type {
         ExprType::Symbol(s) => s.clone(),
-        _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string(), args[0].position.clone())),
+        _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string(), args[0].span)),
     };
     
     let params = match &args[1].expr_type {
@@ -46,12 +46,12 @@ pub fn eval_defn(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFra
             for param_expr in param_exprs {
                 match &param_expr.expr_type {
                     ExprType::Symbol(s) => params.push(s.clone()),
-                    _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string(), param_expr.position.clone())),
+                    _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string(), param_expr.span)),
                 }
             }
             params
         }
-        _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string(), args[1].position.clone())),
+        _ => return Err(EvalError::TypeError("defn requires a parameter list as second argument".to_string(), args[1].span)),
     };
     
     let body = args[2..].to_vec();
@@ -70,9 +70,9 @@ pub fn eval_defn(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFra
 pub fn eval_lambda(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 2 {
         let pos = if args.is_empty() { 
-            Position::new(1, 1)
+            Span::point(0)
         } else { 
-            args[0].position.clone() 
+            args[0].span 
         };
         return Err(EvalError::ArityError("lambda requires at least 2 arguments".to_string(), pos));
     }
@@ -83,12 +83,12 @@ pub fn eval_lambda(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackF
             for param_expr in param_exprs {
                 match &param_expr.expr_type {
                     ExprType::Symbol(s) => params.push(s.clone()),
-                    _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string(), param_expr.position.clone())),
+                    _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string(), param_expr.span)),
                 }
             }
             params
         }
-        _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string(), args[0].position.clone())),
+        _ => return Err(EvalError::TypeError("lambda requires a parameter list as first argument".to_string(), args[0].span)),
     };
     
     let body = args[1..].to_vec();
@@ -111,9 +111,9 @@ pub fn eval_do(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>
 pub fn eval_if(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     if args.len() < 2 || args.len() > 3 {
         let pos = if args.is_empty() { 
-            Position::new(1, 1)
+            Span::point(0)
         } else { 
-            args[0].position.clone() 
+            args[0].span 
         };
         return Err(EvalError::ArityError("if requires 2 or 3 arguments (condition, then, optional else)".to_string(), pos));
     }
@@ -137,7 +137,7 @@ pub fn eval_cond(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFram
         match &clause.expr_type {
             ExprType::List(clause_elements) => {
                 if clause_elements.len() < 2 {
-                    return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string(), clause.position.clone()));
+                    return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string(), clause.span));
                 }
                 
                 let condition_expr = &clause_elements[0];
@@ -162,7 +162,7 @@ pub fn eval_cond(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFram
                 }
             }
             _ => {
-                return Err(EvalError::TypeError("cond clauses must be lists".to_string(), clause.position.clone()));
+                return Err(EvalError::TypeError("cond clauses must be lists".to_string(), clause.span));
             }
         }
     }

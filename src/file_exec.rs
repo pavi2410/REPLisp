@@ -45,7 +45,7 @@ pub fn execute_file(filename: &str, debug: bool) {
             expressions
         }
         Err(err) => {
-            eprintln!("Parse error: {}", err);
+            eprintln!("Parse error: {}", err.display(&content));
             process::exit(1);
         }
     };
@@ -63,7 +63,7 @@ pub fn execute_file(filename: &str, debug: bool) {
             }
             Err(err) => {
                 let error_with_stack = err.with_stack(&stack);
-                eprintln!("Evaluation error in expression {}: {}", i, error_with_stack);
+                eprintln!("Evaluation error in expression {}: {}", i, error_with_stack.display(&content));
                 process::exit(1);
             }
         }
