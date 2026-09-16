@@ -179,26 +179,41 @@ impl Tokenizer {
         }
     }
     
-    fn read_string(&mut self) -> Token {
+    fn read_string(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
-        self.advance(); // Skip opening quote
-        let content_start = self.position;
-        
-        while let Some(ch) = self.current_char() {
-            if ch == '"' {
-                break;
+        self.advance();
+        let mut content = String::new();
+
+        loop {
+            match self.current_char() {
+                None => return Err(TokenizeError::UnterminatedString(self.span_from(start))),
+                Some('"') => {
+                    self.advance();
+                    return Ok(self.emit(TokenType::String(content), start));
+                }
+                Some('\\') => {
+                    self.advance();
+                    match self.current_char() {
+                        None => return Err(TokenizeError::UnterminatedString(self.span_from(start))),
+                        Some(ch) => {
+                            content.push(match ch {
+                                'n' => '\n',
+                                't' => '\t',
+                                'r' => '\r',
+                                '"' => '"',
+                                '\\' => '\\',
+                                other => other,
+                            });
+                            self.advance();
+                        }
+                    }
+                }
+                Some(ch) => {
+                    content.push(ch);
+                    self.advance();
+                }
             }
-            // TODO: Handle escape sequences
-            self.advance();
         }
-        
-        let string_content: String = self.input[content_start..self.position].iter().collect();
-        
-        if self.current_char() == Some('"') {
-            self.advance(); // Skip closing quote
-        }
-        
-        self.emit(TokenType::String(string_content), start)
     }
     
     fn read_symbol(&mut self) -> Token {
@@ -247,7 +262,7 @@ impl Tokenizer {
                 Some('\'') => return Ok(self.take(TokenType::Quote)),
                 
                 Some('"') => {
-                    return Ok(self.read_string());
+                    return self.read_string();
                 }
                 
                 Some(';') => {
@@ -279,6 +294,7 @@ impl Tokenizer {
 pub enum TokenizeError {
     Unknown(Token),
     InvalidNumber(String, Span),
+    UnterminatedString(Span),
 }
 
 impl TokenizeError {
@@ -297,6 +313,13 @@ impl TokenizeError {
                 format!(
                     "Invalid number '{}' at line {}, column {}",
                     lexeme, loc.line, loc.column
+                )
+            }
+            TokenizeError::UnterminatedString(span) => {
+                let loc = lines.position(span.start);
+                format!(
+                    "Unterminated string at line {}, column {}",
+                    loc.line, loc.column
                 )
             }
         }
@@ -333,6 +356,9 @@ impl std::fmt::Display for TokenizeError {
             }
             TokenizeError::InvalidNumber(lexeme, span) => {
                 write!(f, "Invalid number '{}' at offset {}", lexeme, span.start)
+            }
+            TokenizeError::UnterminatedString(span) => {
+                write!(f, "Unterminated string at offset {}", span.start)
             }
         }
     }
@@ -396,5 +422,65 @@ mod tests {
     fn tokens_cover_source_span() {
         let tokens = tokenize("3.14").unwrap();
         assert_eq!(tokens[0].span, Span::new(0, 4));
+    }
+
+    fn string_value(input: &str) -> String {
+        match tokenize(input).unwrap()[0].token_type.clone() {
+            TokenType::String(s) => s,
+            other => panic!("expected String, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_strings() {
+        assert_eq!(string_value(r#""hello""#), "hello");
+        assert_eq!(string_value(r#""""#), "");
+        assert_eq!(tokenize(r#""hi""#).unwrap()[0].span, Span::new(0, 4));
+    }
+
+    #[test]
+    fn parses_string_escapes() {
+        assert_eq!(string_value(r#""a\nb""#), "a\nb");
+        assert_eq!(string_value(r#""a\tb""#), "a\tb");
+        assert_eq!(string_value(r#""a\rb""#), "a\rb");
+        assert_eq!(string_value(r#""say \"hi\"""#), r#"say "hi""#);
+        assert_eq!(string_value(r#""path\\file""#), r"path\file");
+    }
+
+    #[test]
+    fn rejects_unterminated_string() {
+        let err = tokenize(r#""foo"#).unwrap_err();
+        match err {
+            TokenizeError::UnterminatedString(span) => {
+                assert_eq!(span, Span::new(0, 4));
+            }
+            other => panic!("expected UnterminatedString, got {other:?}"),
+        }
+        assert!(tokenize(r#""foo"#).unwrap_err().display(r#""foo"#).contains("line 1"));
+    }
+
+    #[test]
+    fn rejects_unterminated_string_after_escape() {
+        let err = tokenize(r#""foo\"#).unwrap_err();
+        match err {
+            TokenizeError::UnterminatedString(span) => {
+                assert_eq!(span, Span::new(0, 5));
+            }
+            other => panic!("expected UnterminatedString, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unterminated_string_includes_position() {
+        let input = "(print \"hi";
+        let err = tokenize(input).unwrap_err();
+        match err {
+            TokenizeError::UnterminatedString(span) => {
+                assert_eq!(span, Span::new(7, 10));
+                let loc = LineIndex::new(input).position(span.start);
+                assert_eq!(loc, Position::new(1, 8));
+            }
+            other => panic!("expected UnterminatedString, got {other:?}"),
+        }
     }
 }
