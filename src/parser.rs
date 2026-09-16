@@ -64,18 +64,20 @@ impl Parser {
         }
     }
     
-    fn current_token(&self) -> Option<&Token> {
+    fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.position)
     }
-    
-    fn advance(&mut self) {
+
+    fn eat(&mut self) -> Option<Token> {
+        let token = self.tokens.get(self.position).cloned()?;
         self.position += 1;
+        Some(token)
     }
     
     pub fn parse(&mut self) -> Result<Vec<Expr>, ParseError> {
         let mut expressions = Vec::new();
         
-        while self.current_token().is_some() {
+        while self.peek().is_some() {
             expressions.push(self.parse_expression()?);
         }
         
@@ -83,44 +85,18 @@ impl Parser {
     }
     
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        match self.current_token() {
-            Some(token) => {
-                let span = token.span;
-                match &token.token_type {
-                    TokenType::Number(n) => {
-                        let num = *n;
-                        self.advance();
-                        Ok(Expr::new(ExprType::Number(num), span))
-                    }
-                    
-                    TokenType::String(s) => {
-                        let string = s.clone();
-                        self.advance();
-                        Ok(Expr::new(ExprType::String(string), span))
-                    }
-                    
-                    TokenType::Symbol(s) => {
-                        let symbol = s.clone();
-                        self.advance();
-                        Ok(Expr::new(ExprType::Symbol(symbol), span))
-                    }
-                    
-                    TokenType::Quote => {
-                        self.advance();
-                        let inner = self.parse_expression()?;
-                        let end = inner.span.end;
-                        Ok(Expr::new(ExprType::Quote(Box::new(inner)), Span::new(span.start, end)))
-                    }
-                    
-                    TokenType::LeftParen => {
-                        self.advance();
-                        self.parse_list(span)
-                    }
-                    
-                    _ => Err(ParseError::UnexpectedToken(token.clone())),
-                }
+        let Token { token_type, span } = self.eat().ok_or(ParseError::UnexpectedEof)?;
+        match token_type {
+            TokenType::Number(n) => Ok(Expr::new(ExprType::Number(n), span)),
+            TokenType::String(s) => Ok(Expr::new(ExprType::String(s), span)),
+            TokenType::Symbol(s) => Ok(Expr::new(ExprType::Symbol(s), span)),
+            TokenType::Quote => {
+                let inner = self.parse_expression()?;
+                let end = inner.span.end;
+                Ok(Expr::new(ExprType::Quote(Box::new(inner)), Span::new(span.start, end)))
             }
-            None => Err(ParseError::UnexpectedEof),
+            TokenType::LeftParen => self.parse_list(span),
+            token_type => Err(ParseError::UnexpectedToken(Token { token_type, span })),
         }
     }
     
@@ -128,28 +104,17 @@ impl Parser {
         let mut elements = Vec::new();
         
         loop {
-            match self.current_token() {
-                Some(token) => {
-                    match &token.token_type {
-                        TokenType::RightParen => {
-                            let end = token.span.end;
-                            self.advance();
-                            return Ok(Expr::new(
-                                ExprType::List(elements),
-                                Span::new(open.start, end),
-                            ));
-                        }
-                        
-                        _ => {
-                            let expr = self.parse_expression()?;
-                            elements.push(expr);
-                        }
-                    }
+            match self.peek() {
+                None => return Err(ParseError::UnmatchedParen(open)),
+                Some(token) if matches!(token.token_type, TokenType::RightParen) => {
+                    let end = token.span.end;
+                    self.eat();
+                    return Ok(Expr::new(
+                        ExprType::List(elements),
+                        Span::new(open.start, end),
+                    ));
                 }
-                
-                None => {
-                    return Err(ParseError::UnmatchedParen(open));
-                }
+                Some(_) => elements.push(self.parse_expression()?),
             }
         }
     }
