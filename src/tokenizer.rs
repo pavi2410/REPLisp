@@ -63,27 +63,12 @@ impl LineIndex {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
-    // Literals
     Number(f64),
     String(String),
     Symbol(String),
-    
-    // Delimiters
     LeftParen,
     RightParen,
-    
-    // Special
     Quote,
-    
-    // Whitespace and comments (usually ignored)
-    Whitespace,
-    Comment(String),
-    
-    // End of input
-    Eof,
-
-    // Unknown token
-    Unknown(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -231,59 +216,55 @@ impl Tokenizer {
         self.emit(TokenType::Symbol(symbol), start)
     }
     
-    fn read_comment(&mut self) -> Token {
-        let start = self.position;
-        self.advance(); // Skip semicolon
-        let content_start = self.position;
-        
+    fn skip_comment(&mut self) {
+        self.advance();
         while let Some(ch) = self.current_char() {
             if ch == '\n' {
                 break;
             }
             self.advance();
         }
-        
-        let comment: String = self.input[content_start..self.position].iter().collect();
-        self.emit(TokenType::Comment(comment), start)
     }
     
-    pub fn next_token(&mut self) -> Result<Token, TokenizeError> {
+    pub fn next_token(&mut self) -> Result<Option<Token>, TokenizeError> {
         loop {
             match self.current_char() {
-                None => return Ok(Token::new(TokenType::Eof, Span::point(self.position))),
+                None => return Ok(None),
                 
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
                     continue;
                 }
                 
-                Some('(') => return Ok(self.take(TokenType::LeftParen)),
-                Some(')') => return Ok(self.take(TokenType::RightParen)),
-                Some('\'') => return Ok(self.take(TokenType::Quote)),
+                Some('(') => return Ok(Some(self.take(TokenType::LeftParen))),
+                Some(')') => return Ok(Some(self.take(TokenType::RightParen))),
+                Some('\'') => return Ok(Some(self.take(TokenType::Quote))),
                 
                 Some('"') => {
-                    return self.read_string();
+                    return self.read_string().map(Some);
                 }
                 
                 Some(';') => {
-                    let _comment = self.read_comment();
+                    self.skip_comment();
                     continue;
                 }
                 
                 Some(ch) if ch.is_ascii_digit() => {
-                    return self.read_number();
+                    return self.read_number().map(Some);
                 }
                 
                 Some(ch) if ch == '-' && self.peek().is_some_and(|p| p.is_ascii_digit()) => {
-                    return self.read_number();
+                    return self.read_number().map(Some);
                 }
                 
                 Some(ch) if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) => {
-                    return Ok(self.read_symbol());
+                    return Ok(Some(self.read_symbol()));
                 }
 
                 Some(ch) => {
-                    return Ok(self.take(TokenType::Unknown(ch.to_string())));
+                    let start = self.position;
+                    self.advance();
+                    return Err(TokenizeError::Unknown(ch, self.span_from(start)));
                 }
             }
         }
@@ -292,7 +273,7 @@ impl Tokenizer {
 
 #[derive(Debug)]
 pub enum TokenizeError {
-    Unknown(Token),
+    Unknown(char, Span),
     InvalidNumber(String, Span),
     UnterminatedString(Span),
 }
@@ -301,11 +282,11 @@ impl TokenizeError {
     pub fn display(&self, source: &str) -> String {
         let lines = LineIndex::new(source);
         match self {
-            TokenizeError::Unknown(token) => {
-                let loc = lines.position(token.span.start);
+            TokenizeError::Unknown(ch, span) => {
+                let loc = lines.position(span.start);
                 format!(
                     "Unknown character at line {}, column {}: {:?}",
-                    loc.line, loc.column, token.token_type
+                    loc.line, loc.column, ch
                 )
             }
             TokenizeError::InvalidNumber(lexeme, span) => {
@@ -330,19 +311,8 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     let mut tokenizer = Tokenizer::new(input);
     let mut tokens = Vec::new();
     
-    loop {
-        let token = tokenizer.next_token()?;
-        let is_eof = matches!(token.token_type, TokenType::Eof);
-
-        if matches!(token.token_type, TokenType::Unknown(_)) {
-            return Err(TokenizeError::Unknown(token));
-        }
-
+    while let Some(token) = tokenizer.next_token()? {
         tokens.push(token);
-        
-        if is_eof {
-            break;
-        }
     }
     
     Ok(tokens)
@@ -351,8 +321,8 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
 impl std::fmt::Display for TokenizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenizeError::Unknown(token) => {
-                write!(f, "Unknown character at offset {}: {:?}", token.span.start, token.token_type)
+            TokenizeError::Unknown(ch, span) => {
+                write!(f, "Unknown character at offset {}: {:?}", span.start, ch)
             }
             TokenizeError::InvalidNumber(lexeme, span) => {
                 write!(f, "Invalid number '{}' at offset {}", lexeme, span.start)
@@ -376,7 +346,6 @@ mod tests {
             .into_iter()
             .filter_map(|t| match t.token_type {
                 TokenType::Number(n) => Some(n),
-                TokenType::Eof => None,
                 other => panic!("unexpected token {other:?}"),
             })
             .collect()
@@ -482,5 +451,12 @@ mod tests {
             }
             other => panic!("expected UnterminatedString, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn skips_comments_and_whitespace() {
+        let tokens = tokenize("  ; comment\n  1  ; more\n  2").unwrap();
+        let kinds: Vec<_> = tokens.into_iter().map(|t| t.token_type).collect();
+        assert_eq!(kinds, vec![TokenType::Number(1.0), TokenType::Number(2.0)]);
     }
 }

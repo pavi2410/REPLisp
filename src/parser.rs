@@ -75,14 +75,8 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Expr>, ParseError> {
         let mut expressions = Vec::new();
         
-        while let Some(token) = self.current_token() {
-            match &token.token_type {
-                TokenType::Eof => break,
-                _ => {
-                    let expr = self.parse_expression()?;
-                    expressions.push(expr);
-                }
-            }
+        while self.current_token().is_some() {
+            expressions.push(self.parse_expression()?);
         }
         
         Ok(expressions)
@@ -146,10 +140,6 @@ impl Parser {
                             ));
                         }
                         
-                        TokenType::Eof => {
-                            return Err(ParseError::UnmatchedParen(open));
-                        }
-                        
                         _ => {
                             let expr = self.parse_expression()?;
                             elements.push(expr);
@@ -158,7 +148,7 @@ impl Parser {
                 }
                 
                 None => {
-                    return Err(ParseError::UnexpectedEof);
+                    return Err(ParseError::UnmatchedParen(open));
                 }
             }
         }
