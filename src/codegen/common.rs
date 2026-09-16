@@ -74,9 +74,9 @@ pub fn extract_function_definitions(exprs: &[Expr]) -> Result<FunctionRegistry, 
     let mut registry = FunctionRegistry::new();
 
     for expr in exprs {
-        if let ExprType::List(elements) = &expr.expr_type {
+        if let ExprType::List(elements) = &expr.kind {
             if !elements.is_empty() {
-                if let ExprType::Symbol(op) = &elements[0].expr_type {
+                if let ExprType::Symbol(op) = &elements[0].kind {
                     if op == "defn" {
                         let info = parse_defn(elements)?;
                         registry.register(info);
@@ -104,17 +104,17 @@ fn parse_defn(elements: &[Expr]) -> Result<FunctionInfo, String> {
     }
 
     // Extract function name
-    let name = match &elements[1].expr_type {
+    let name = match &elements[1].kind {
         ExprType::Symbol(s) => s.clone(),
         _ => return Err("defn requires a symbol as function name".to_string()),
     };
 
     // Extract parameters
-    let params = match &elements[2].expr_type {
+    let params = match &elements[2].kind {
         ExprType::List(p) => {
             let mut param_names = Vec::new();
             for param in p {
-                match &param.expr_type {
+                match &param.kind {
                     ExprType::Symbol(s) => param_names.push(s.clone()),
                     _ => return Err("defn parameters must be symbols".to_string()),
                 }
@@ -146,9 +146,9 @@ fn parse_defn(elements: &[Expr]) -> Result<FunctionInfo, String> {
 /// # Returns
 /// Some(operator_name) if it's a special form, None otherwise
 pub fn is_special_form(expr: &Expr) -> Option<&str> {
-    match &expr.expr_type {
+    match &expr.kind {
         ExprType::List(elements) if !elements.is_empty() => {
-            match &elements[0].expr_type {
+            match &elements[0].kind {
                 ExprType::Symbol(op) => {
                     match op.as_str() {
                         "if" | "def" | "defn" | "do" | "lambda" | "quote" => Some(op),
@@ -170,9 +170,9 @@ pub fn is_special_form(expr: &Expr) -> Option<&str> {
 /// # Returns
 /// Some(function_name) if it's a builtin, None otherwise
 pub fn is_builtin(expr: &Expr) -> Option<&str> {
-    match &expr.expr_type {
+    match &expr.kind {
         ExprType::List(elements) if !elements.is_empty() => {
-            match &elements[0].expr_type {
+            match &elements[0].kind {
                 ExprType::Symbol(op) => {
                     match op.as_str() {
                         // Arithmetic

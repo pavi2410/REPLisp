@@ -3,7 +3,7 @@ use crate::value::Value;
 use crate::error::EvalError;
 
 pub fn eval_quote(expr: &Expr) -> Result<Value, EvalError> {
-    match &expr.expr_type {
+    match &expr.kind {
         ExprType::Number(n) => Ok(Value::Number(*n)),
         ExprType::String(s) => Ok(Value::String(s.clone())),
         ExprType::Symbol(s) => {

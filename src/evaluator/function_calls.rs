@@ -13,7 +13,7 @@ pub fn eval_function_call(elements: &[Expr], env: &mut Environment, stack: &mut 
     let args_exprs = &elements[1..];
     
     // Get function name for stack trace
-    let func_name = match &func_expr.expr_type {
+    let func_name = match &func_expr.kind {
         ExprType::Symbol(name) => name.clone(),
         _ => "<anonymous>".to_string(),
     };

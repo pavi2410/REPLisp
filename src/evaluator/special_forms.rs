@@ -15,7 +15,7 @@ pub fn eval_def(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame
         return Err(EvalError::ArityError("def requires exactly 2 arguments".to_string(), pos));
     }
     
-    let name = match &args[0].expr_type {
+    let name = match &args[0].kind {
         ExprType::Symbol(s) => s.clone(),
         _ => return Err(EvalError::TypeError("def requires a symbol as first argument".to_string(), args[0].span)),
     };
@@ -35,16 +35,16 @@ pub fn eval_defn(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackFra
         return Err(EvalError::ArityError("defn requires at least 3 arguments".to_string(), pos));
     }
     
-    let name = match &args[0].expr_type {
+    let name = match &args[0].kind {
         ExprType::Symbol(s) => s.clone(),
         _ => return Err(EvalError::TypeError("defn requires a symbol as first argument".to_string(), args[0].span)),
     };
     
-    let params = match &args[1].expr_type {
+    let params = match &args[1].kind {
         ExprType::List(param_exprs) => {
             let mut params = Vec::new();
             for param_expr in param_exprs {
-                match &param_expr.expr_type {
+                match &param_expr.kind {
                     ExprType::Symbol(s) => params.push(s.clone()),
                     _ => return Err(EvalError::TypeError("defn parameters must be symbols".to_string(), param_expr.span)),
                 }
@@ -77,11 +77,11 @@ pub fn eval_lambda(args: &[Expr], env: &mut Environment, _stack: &mut Vec<StackF
         return Err(EvalError::ArityError("lambda requires at least 2 arguments".to_string(), pos));
     }
     
-    let params = match &args[0].expr_type {
+    let params = match &args[0].kind {
         ExprType::List(param_exprs) => {
             let mut params = Vec::new();
             for param_expr in param_exprs {
-                match &param_expr.expr_type {
+                match &param_expr.kind {
                     ExprType::Symbol(s) => params.push(s.clone()),
                     _ => return Err(EvalError::TypeError("lambda parameters must be symbols".to_string(), param_expr.span)),
                 }
@@ -134,7 +134,7 @@ pub fn eval_if(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>
 
 pub fn eval_cond(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFrame>) -> Result<Value, EvalError> {
     for clause in args {
-        match &clause.expr_type {
+        match &clause.kind {
             ExprType::List(clause_elements) => {
                 if clause_elements.len() < 2 {
                     return Err(EvalError::TypeError("cond clause must have at least 2 elements (condition and result)".to_string(), clause.span));
@@ -144,7 +144,7 @@ pub fn eval_cond(args: &[Expr], env: &mut Environment, stack: &mut Vec<StackFram
                 let result_exprs = &clause_elements[1..];
                 
                 // Check for 'else' clause (special symbol that's always true)
-                let is_else_clause = matches!(&condition_expr.expr_type, ExprType::Symbol(s) if s == "else");
+                let is_else_clause = matches!(&condition_expr.kind, ExprType::Symbol(s) if s == "else");
                 
                 let condition_result = if is_else_clause {
                     Value::Boolean(true) // else is always true

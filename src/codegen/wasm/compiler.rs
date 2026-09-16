@@ -125,9 +125,9 @@ impl Compiler {
     pub fn compile(&mut self, exprs: &[Expr]) -> Result<Vec<u8>, String> {
         // First pass: collect function definitions
         for expr in exprs {
-            if let ExprType::List(elements) = &expr.expr_type {
+            if let ExprType::List(elements) = &expr.kind {
                 if !elements.is_empty() {
-                    if let ExprType::Symbol(op) = &elements[0].expr_type {
+                    if let ExprType::Symbol(op) = &elements[0].kind {
                         if op == "defn" {
                             self.preprocess_defn(elements)?;
                         }
@@ -144,9 +144,9 @@ impl Compiler {
         // Compile each top-level expression
         for expr in exprs {
             // Skip defn - they're already compiled
-            if let ExprType::List(elements) = &expr.expr_type {
+            if let ExprType::List(elements) = &expr.kind {
                 if !elements.is_empty() {
-                    if let ExprType::Symbol(op) = &elements[0].expr_type {
+                    if let ExprType::Symbol(op) = &elements[0].kind {
                         if op == "defn" {
                             continue;
                         }
@@ -176,16 +176,16 @@ impl Compiler {
             return Err("defn requires at least 3 arguments".to_string());
         }
 
-        let fn_name = match &elements[1].expr_type {
+        let fn_name = match &elements[1].kind {
             ExprType::Symbol(s) => s.clone(),
             _ => return Err("defn requires a symbol as function name".to_string()),
         };
 
-        let params = match &elements[2].expr_type {
+        let params = match &elements[2].kind {
             ExprType::List(p) => {
                 let mut param_names = Vec::new();
                 for param in p {
-                    match &param.expr_type {
+                    match &param.kind {
                         ExprType::Symbol(s) => param_names.push(s.clone()),
                         _ => return Err("defn parameters must be symbols".to_string()),
                     }
@@ -231,7 +231,7 @@ impl Compiler {
     }
 
     fn compile_expr(&mut self, expr: &Expr, locals: &HashMap<String, u32>) -> Result<Vec<u8>, String> {
-        match &expr.expr_type {
+        match &expr.kind {
             ExprType::Number(n) => self.compile_number(*n),
             ExprType::String(s) => self.compile_string(s),
             ExprType::Symbol(s) => self.compile_symbol(s, locals),
@@ -281,7 +281,7 @@ impl Compiler {
             return self.compile_number(f64::NAN); // Empty list as nil
         }
 
-        match &elements[0].expr_type {
+        match &elements[0].kind {
             ExprType::Symbol(op) => {
                 match op.as_str() {
                     // Arithmetic

@@ -37,9 +37,9 @@ impl Compiler {
     pub fn compile(&mut self, exprs: &[Expr]) -> Result<Vec<u8>, String> {
         // First pass: collect function definitions
         for expr in exprs {
-            if let ExprType::List(elements) = &expr.expr_type {
+            if let ExprType::List(elements) = &expr.kind {
                 if !elements.is_empty() {
-                    if let ExprType::Symbol(op) = &elements[0].expr_type {
+                    if let ExprType::Symbol(op) = &elements[0].kind {
                         if op == "defn" {
                             self.preprocess_defn(elements)?;
                         }
@@ -81,12 +81,12 @@ impl Compiler {
             return Err("defn requires at least 3 arguments".to_string());
         }
 
-        let fn_name = match &elements[1].expr_type {
+        let fn_name = match &elements[1].kind {
             ExprType::Symbol(s) => s.clone(),
             _ => return Err("defn requires a symbol as function name".to_string()),
         };
 
-        let params = match &elements[2].expr_type {
+        let params = match &elements[2].kind {
             ExprType::List(p) => p,
             _ => return Err("defn requires a list of parameters".to_string()),
         };
@@ -105,7 +105,7 @@ impl Compiler {
 
     /// Compile a single expression
     fn compile_expr(&mut self, expr: &Expr, locals: &mut HashMap<String, u8>, code_buffer: &mut Vec<u8>) -> Result<Vec<u8>, String> {
-        match &expr.expr_type {
+        match &expr.kind {
             ExprType::Number(n) => self.compile_number(*n),
             ExprType::String(s) => self.compile_string(s),
             ExprType::Symbol(s) => self.compile_symbol(s, locals),
@@ -205,7 +205,7 @@ impl Compiler {
         }
 
         // Check if first element is a special form
-        if let ExprType::Symbol(op) = &elements[0].expr_type {
+        if let ExprType::Symbol(op) = &elements[0].kind {
             match op.as_str() {
                 "def" => return self.compile_def(elements, locals, code_buffer),
                 "defn" => return self.compile_defn(elements, locals),
@@ -479,7 +479,7 @@ impl Compiler {
             return Err("def requires exactly 2 arguments".to_string());
         }
 
-        let var_name = match &elements[1].expr_type {
+        let var_name = match &elements[1].kind {
             ExprType::Symbol(s) => s.clone(),
             _ => return Err("def requires a symbol as first argument".to_string()),
         };
@@ -517,16 +517,16 @@ impl Compiler {
             return Err("defn requires at least 3 arguments".to_string());
         }
 
-        let fn_name = match &elements[1].expr_type {
+        let fn_name = match &elements[1].kind {
             ExprType::Symbol(s) => s.clone(),
             _ => return Err("defn requires a symbol as function name".to_string()),
         };
 
-        let params = match &elements[2].expr_type {
+        let params = match &elements[2].kind {
             ExprType::List(p) => {
                 let mut param_names = Vec::new();
                 for param in p {
-                    match &param.expr_type {
+                    match &param.kind {
                         ExprType::Symbol(s) => param_names.push(s.clone()),
                         _ => return Err("defn parameters must be symbols".to_string()),
                     }
@@ -587,11 +587,11 @@ impl Compiler {
             return Err("lambda requires at least 2 arguments".to_string());
         }
 
-        let params = match &elements[1].expr_type {
+        let params = match &elements[1].kind {
             ExprType::List(p) => {
                 let mut param_names = Vec::new();
                 for param in p {
-                    match &param.expr_type {
+                    match &param.kind {
                         ExprType::Symbol(s) => param_names.push(s.clone()),
                         _ => return Err("lambda parameters must be symbols".to_string()),
                     }

@@ -16,7 +16,7 @@ pub fn eval_expr_with_stack(
     env: &mut Environment, 
     stack: &mut Vec<StackFrame>
 ) -> Result<Value, EvalError> {
-    match &expr.expr_type {
+    match &expr.kind {
         ExprType::Number(n) => Ok(Value::Number(*n)),
         ExprType::String(s) => Ok(Value::String(s.clone())),
         ExprType::Symbol(s) => eval_symbol(s, env, expr),
@@ -45,7 +45,7 @@ fn eval_list(
     }
 
     // Check for special forms
-    if let ExprType::Symbol(name) = &elements[0].expr_type {
+    if let ExprType::Symbol(name) = &elements[0].kind {
         match name.as_str() {
             "def" => special_forms::eval_def(&elements[1..], env, stack),
             "defn" => special_forms::eval_defn(&elements[1..], env, stack),

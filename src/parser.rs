@@ -11,13 +11,13 @@ pub enum ExprType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
-    pub expr_type: ExprType,
+    pub kind: ExprType,
     pub span: Span,
 }
 
 impl Expr {
-    pub fn new(expr_type: ExprType, span: Span) -> Self {
-        Self { expr_type, span }
+    pub fn new(kind: ExprType, span: Span) -> Self {
+        Self { kind, span }
     }
 }
 
@@ -42,7 +42,7 @@ impl ParseError {
                 let loc = lines.position(token.span.start);
                 format!(
                     "Unexpected token at line {}, column {}: {:?}",
-                    loc.line, loc.column, token.token_type
+                    loc.line, loc.column, token.kind
                 )
             }
             ParseError::UnmatchedParen(span) => {
@@ -85,8 +85,8 @@ impl Parser {
     }
     
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        let Token { token_type, span } = self.eat().ok_or(ParseError::UnexpectedEof)?;
-        match token_type {
+        let Token { kind, span } = self.eat().ok_or(ParseError::UnexpectedEof)?;
+        match kind {
             TokenType::Number(n) => Ok(Expr::new(ExprType::Number(n), span)),
             TokenType::String(s) => Ok(Expr::new(ExprType::String(s), span)),
             TokenType::Symbol(s) => Ok(Expr::new(ExprType::Symbol(s), span)),
@@ -96,7 +96,7 @@ impl Parser {
                 Ok(Expr::new(ExprType::Quote(Box::new(inner)), Span::new(span.start, end)))
             }
             TokenType::LeftParen => self.parse_list(span),
-            token_type => Err(ParseError::UnexpectedToken(Token { token_type, span })),
+            kind => Err(ParseError::UnexpectedToken(Token { kind, span })),
         }
     }
     
@@ -106,7 +106,7 @@ impl Parser {
         loop {
             match self.peek() {
                 None => return Err(ParseError::UnmatchedParen(open)),
-                Some(token) if matches!(token.token_type, TokenType::RightParen) => {
+                Some(token) if matches!(token.kind, TokenType::RightParen) => {
                     let end = token.span.end;
                     self.eat();
                     return Ok(Expr::new(
@@ -129,7 +129,7 @@ impl std::fmt::Display for ParseError {
         match self {
             ParseError::UnexpectedEof => write!(f, "Unexpected end of input"),
             ParseError::UnexpectedToken(token) => {
-                write!(f, "Unexpected token at offset {}: {:?}", token.span.start, token.token_type)
+                write!(f, "Unexpected token at offset {}: {:?}", token.span.start, token.kind)
             }
             ParseError::UnmatchedParen(span) => {
                 write!(f, "Unmatched parenthesis at offset {}", span.start)
@@ -142,7 +142,7 @@ impl std::error::Error for ParseError {}
 
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.expr_type {
+        match &self.kind {
             ExprType::Number(n) => write!(f, "{}", n),
             ExprType::String(s) => write!(f, "\"{}\"", s),
             ExprType::Symbol(s) => write!(f, "{}", s),

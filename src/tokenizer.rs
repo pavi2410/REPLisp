@@ -73,13 +73,13 @@ pub enum TokenType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    pub token_type: TokenType,
+    pub kind: TokenType,
     pub span: Span,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, span: Span) -> Self {
-        Self { token_type, span }
+    pub fn new(kind: TokenType, span: Span) -> Self {
+        Self { kind, span }
     }
 }
 
@@ -118,14 +118,14 @@ impl Tokenizer {
         Span::new(start, self.position)
     }
 
-    fn emit(&self, token_type: TokenType, start: usize) -> Token {
-        Token::new(token_type, self.span_from(start))
+    fn emit(&self, kind: TokenType, start: usize) -> Token {
+        Token::new(kind, self.span_from(start))
     }
 
-    fn take(&mut self, token_type: TokenType) -> Token {
+    fn take(&mut self, kind: TokenType) -> Token {
         let start = self.position;
         self.advance();
-        self.emit(token_type, start)
+        self.emit(kind, start)
     }
     
     fn read_number(&mut self) -> Result<Token, TokenizeError> {
@@ -344,7 +344,7 @@ mod tests {
         tokenize(input)
             .unwrap()
             .into_iter()
-            .filter_map(|t| match t.token_type {
+            .filter_map(|t| match t.kind {
                 TokenType::Number(n) => Some(n),
                 other => panic!("unexpected token {other:?}"),
             })
@@ -394,7 +394,7 @@ mod tests {
     }
 
     fn string_value(input: &str) -> String {
-        match tokenize(input).unwrap()[0].token_type.clone() {
+        match tokenize(input).unwrap()[0].kind.clone() {
             TokenType::String(s) => s,
             other => panic!("expected String, got {other:?}"),
         }
@@ -456,7 +456,7 @@ mod tests {
     #[test]
     fn skips_comments_and_whitespace() {
         let tokens = tokenize("  ; comment\n  1  ; more\n  2").unwrap();
-        let kinds: Vec<_> = tokens.into_iter().map(|t| t.token_type).collect();
+        let kinds: Vec<_> = tokens.into_iter().map(|t| t.kind).collect();
         assert_eq!(kinds, vec![TokenType::Number(1.0), TokenType::Number(2.0)]);
     }
 }
