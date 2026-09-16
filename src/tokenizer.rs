@@ -101,30 +101,22 @@ impl Token {
 pub struct Tokenizer {
     input: Vec<char>,
     position: usize,
-    current_char: Option<char>,
-    loc: Position,
 }
 
 impl Tokenizer {
     pub fn new(input: &str) -> Self {
-        let chars: Vec<char> = input.chars().collect();
-        let current_char = chars.get(0).copied();
-        
         Self {
-            input: chars,
+            input: input.chars().collect(),
             position: 0,
-            current_char,
-            loc: Position::start(),
         }
+    }
+
+    fn current_char(&self) -> Option<char> {
+        self.input.get(self.position).copied()
     }
     
     fn advance(&mut self) {
-        if let Some(ch) = self.current_char {
-            self.loc.advance(ch);
-        }
-        
         self.position += 1;
-        self.current_char = self.input.get(self.position).copied();
     }
     
     fn peek(&self) -> Option<char> {
@@ -132,12 +124,8 @@ impl Tokenizer {
     }
     
     fn skip_whitespace(&mut self) {
-        while let Some(ch) = self.current_char {
-            if ch.is_whitespace() {
-                self.advance();
-            } else {
-                break;
-            }
+        while self.current_char().is_some_and(char::is_whitespace) {
+            self.advance();
         }
     }
 
@@ -157,16 +145,15 @@ impl Tokenizer {
     
     fn read_number(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
-        let loc = self.loc;
 
-        if self.current_char == Some('-') {
+        if self.current_char() == Some('-') {
             self.advance();
         }
 
         let mut seen_dot = false;
         let mut extra_dot = false;
 
-        while let Some(ch) = self.current_char {
+        while let Some(ch) = self.current_char() {
             if ch.is_ascii_digit() {
                 self.advance();
             } else if ch == '.' {
@@ -183,12 +170,12 @@ impl Tokenizer {
         let number_str: String = self.input[start..self.position].iter().collect();
         let span = self.span_from(start);
         if extra_dot {
-            return Err(TokenizeError::InvalidNumber(number_str, span, loc));
+            return Err(TokenizeError::InvalidNumber(number_str, span));
         }
 
         match number_str.parse::<f64>() {
             Ok(number) => Ok(self.emit(TokenType::Number(number), start)),
-            Err(_) => Err(TokenizeError::InvalidNumber(number_str, span, loc)),
+            Err(_) => Err(TokenizeError::InvalidNumber(number_str, span)),
         }
     }
     
@@ -197,7 +184,7 @@ impl Tokenizer {
         self.advance(); // Skip opening quote
         let content_start = self.position;
         
-        while let Some(ch) = self.current_char {
+        while let Some(ch) = self.current_char() {
             if ch == '"' {
                 break;
             }
@@ -207,7 +194,7 @@ impl Tokenizer {
         
         let string_content: String = self.input[content_start..self.position].iter().collect();
         
-        if self.current_char == Some('"') {
+        if self.current_char() == Some('"') {
             self.advance(); // Skip closing quote
         }
         
@@ -217,7 +204,7 @@ impl Tokenizer {
     fn read_symbol(&mut self) -> Token {
         let start = self.position;
         
-        while let Some(ch) = self.current_char {
+        while let Some(ch) = self.current_char() {
             if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) {
                 self.advance();
             } else {
@@ -234,7 +221,7 @@ impl Tokenizer {
         self.advance(); // Skip semicolon
         let content_start = self.position;
         
-        while let Some(ch) = self.current_char {
+        while let Some(ch) = self.current_char() {
             if ch == '\n' {
                 break;
             }
@@ -247,7 +234,7 @@ impl Tokenizer {
     
     pub fn next_token(&mut self) -> Result<Token, TokenizeError> {
         loop {
-            match self.current_char {
+            match self.current_char() {
                 None => return Ok(Token::new(TokenType::Eof, Span::point(self.position))),
                 
                 Some(ch) if ch.is_whitespace() => {
@@ -265,7 +252,6 @@ impl Tokenizer {
                 
                 Some(';') => {
                     let _comment = self.read_comment();
-                    // Skip comments and continue
                     continue;
                 }
                 
@@ -273,7 +259,7 @@ impl Tokenizer {
                     return self.read_number();
                 }
                 
-                Some(ch) if ch == '-' && self.peek().map_or(false, |p| p.is_ascii_digit()) => {
+                Some(ch) if ch == '-' && self.peek().is_some_and(|p| p.is_ascii_digit()) => {
                     return self.read_number();
                 }
                 
@@ -281,9 +267,8 @@ impl Tokenizer {
                     return Ok(self.read_symbol());
                 }
 
-                Some(_) => {
-                    let unknown_char = self.current_char.unwrap();
-                    return Ok(self.take(TokenType::Unknown(unknown_char.to_string())));
+                Some(ch) => {
+                    return Ok(self.take(TokenType::Unknown(ch.to_string())));
                 }
             }
         }
@@ -292,8 +277,30 @@ impl Tokenizer {
 
 #[derive(Debug)]
 pub enum TokenizeError {
-    Unknown(Token, Position),
-    InvalidNumber(String, Span, Position),
+    Unknown(Token),
+    InvalidNumber(String, Span),
+}
+
+impl TokenizeError {
+    pub fn display(&self, source: &str) -> String {
+        let lines = LineIndex::new(source);
+        match self {
+            TokenizeError::Unknown(token) => {
+                let loc = lines.position(token.span.start);
+                format!(
+                    "Unknown character at line {}, column {}: {:?}",
+                    loc.line, loc.column, token.token_type
+                )
+            }
+            TokenizeError::InvalidNumber(lexeme, span) => {
+                let loc = lines.position(span.start);
+                format!(
+                    "Invalid number '{}' at line {}, column {}",
+                    lexeme, loc.line, loc.column
+                )
+            }
+        }
+    }
 }
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
@@ -305,8 +312,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
         let is_eof = matches!(token.token_type, TokenType::Eof);
 
         if matches!(token.token_type, TokenType::Unknown(_)) {
-            let loc = LineIndex::new(input).position(token.span.start);
-            return Err(TokenizeError::Unknown(token, loc));
+            return Err(TokenizeError::Unknown(token));
         }
 
         tokens.push(token);
@@ -322,19 +328,11 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
 impl std::fmt::Display for TokenizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenizeError::Unknown(token, loc) => {
-                write!(
-                    f,
-                    "Unknown character at line {}, column {}: {:?}",
-                    loc.line, loc.column, token.token_type
-                )
+            TokenizeError::Unknown(token) => {
+                write!(f, "Unknown character at offset {}: {:?}", token.span.start, token.token_type)
             }
-            TokenizeError::InvalidNumber(lexeme, _, loc) => {
-                write!(
-                    f,
-                    "Invalid number '{}' at line {}, column {}",
-                    lexeme, loc.line, loc.column
-                )
+            TokenizeError::InvalidNumber(lexeme, span) => {
+                write!(f, "Invalid number '{}' at offset {}", lexeme, span.start)
             }
         }
     }
@@ -360,7 +358,7 @@ mod tests {
 
     fn invalid_number(input: &str) -> String {
         match tokenize(input) {
-            Err(TokenizeError::InvalidNumber(lexeme, _, _)) => lexeme,
+            Err(TokenizeError::InvalidNumber(lexeme, _)) => lexeme,
             other => panic!("expected InvalidNumber, got {other:?}"),
         }
     }
@@ -386,10 +384,9 @@ mod tests {
     fn invalid_number_includes_span() {
         let err = tokenize("(+ 1.2.3)").unwrap_err();
         match err {
-            TokenizeError::InvalidNumber(lexeme, span, loc) => {
+            TokenizeError::InvalidNumber(lexeme, span) => {
                 assert_eq!(lexeme, "1.2.3");
                 assert_eq!(span, Span::new(3, 8));
-                assert_eq!(loc, Position::new(1, 4));
             }
             other => panic!("expected InvalidNumber, got {other:?}"),
         }

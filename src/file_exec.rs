@@ -20,7 +20,7 @@ pub fn execute_file(filename: &str, debug: bool) {
     let tokens = match tokenizer::tokenize(&content) {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("Error tokenizing file '{}': {}", filename, err);
+            eprintln!("Error tokenizing file '{}': {}", filename, err.display(&content));
             process::exit(1);
         }
     };

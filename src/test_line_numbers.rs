@@ -29,7 +29,7 @@ mod tests {
         let result = tokenize(input);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.to_string().contains("line 4"));
+        assert!(error.display(input).contains("line 4"));
     }
 
     #[test]

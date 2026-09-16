@@ -78,7 +78,7 @@ fn eval_input(input: &str, env: &Rc<RefCell<Environment>>, debug: bool) {
     let tokens = match tokenizer::tokenize(input) {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("Error tokenizing input: {err}");
+            eprintln!("Error tokenizing input: {}", err.display(input));
             return;
         }
     };

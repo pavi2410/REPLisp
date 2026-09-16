@@ -89,7 +89,7 @@ fn compile_file(input: &str, output: Option<&str>, target: CompileTarget, debug:
     let tokens = match tokenizer::tokenize(&source) {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("Tokenization error: {}", err);
+            eprintln!("Tokenization error: {}", err.display(&source));
             std::process::exit(1);
         }
     };
