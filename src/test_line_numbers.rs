@@ -27,8 +27,9 @@ mod tests {
         let input = "(\n  +\n  1\n  @"; // Invalid character
         
         let result = tokenize(input);
-        assert!(result.is_none());
-        // The tokenizer prints the error with line numbers
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("line 4"));
     }
 
     #[test]

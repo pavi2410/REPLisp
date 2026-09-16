@@ -242,19 +242,21 @@ impl Tokenizer {
     }
 }
 
-pub fn tokenize(input: &str) -> Option<Vec<Token>> {
+#[derive(Debug)]
+pub enum TokenizeError {
+    Unknown(Token),
+}
+
+pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     let mut tokenizer = Tokenizer::new(input);
     let mut tokens = Vec::new();
     
     loop {
         let token = tokenizer.next_token();
         let is_eof = matches!(token.token_type, TokenType::Eof);
-        let is_unknown = matches!(token.token_type, TokenType::Unknown(_));
 
-        if is_unknown {
-            println!("tokenize: Found unknown character at line {}, column {}: {:?}", 
-                     token.position.line, token.position.column, token.token_type);
-            return None;
+        if matches!(token.token_type, TokenType::Unknown(_)) {
+            return Err(TokenizeError::Unknown(token));
         }
 
         tokens.push(token);
@@ -264,5 +266,21 @@ pub fn tokenize(input: &str) -> Option<Vec<Token>> {
         }
     }
     
-    Some(tokens)
+    Ok(tokens)
 }
+
+impl std::fmt::Display for TokenizeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenizeError::Unknown(token) => {
+                write!(
+                    f,
+                    "Unknown character at line {}, column {}: {:?}",
+                    token.position.line, token.position.column, token.token_type
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for TokenizeError {}

@@ -87,9 +87,9 @@ fn compile_file(input: &str, output: Option<&str>, target: CompileTarget, debug:
 
     // Tokenize
     let tokens = match tokenizer::tokenize(&source) {
-        Some(tokens) => tokens,
-        None => {
-            eprintln!("Tokenization error");
+        Ok(tokens) => tokens,
+        Err(err) => {
+            eprintln!("Tokenization error: {}", err);
             std::process::exit(1);
         }
     };

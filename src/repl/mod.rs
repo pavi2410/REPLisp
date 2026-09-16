@@ -75,12 +75,13 @@ fn eval_input(input: &str, env: &Rc<RefCell<Environment>>, debug: bool) {
         println!("Input: {input}");
     }
 
-    let tokens = tokenizer::tokenize(input);
-    if tokens.is_none() {
-        eprintln!("Error tokenizing input: {input}");
-        return;
-    }
-    let tokens = tokens.unwrap();
+    let tokens = match tokenizer::tokenize(input) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            eprintln!("Error tokenizing input: {err}");
+            return;
+        }
+    };
 
     if debug {
         println!("Tokens ({} total):", tokens.len());

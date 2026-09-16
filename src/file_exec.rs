@@ -17,13 +17,13 @@ pub fn execute_file(filename: &str, debug: bool) {
         println!("---");
     }
     
-    let tokens = tokenizer::tokenize(&content);
-    
-    if tokens.is_none() {
-        eprintln!("Error tokenizing file '{}'", filename);
-        process::exit(1);
-    }
-    let tokens = tokens.unwrap();
+    let tokens = match tokenizer::tokenize(&content) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            eprintln!("Error tokenizing file '{}': {}", filename, err);
+            process::exit(1);
+        }
+    };
 
     if debug {
         println!("Tokens ({} total):", tokens.len());
