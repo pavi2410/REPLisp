@@ -34,14 +34,14 @@ impl Expr {
         }
     }
 
-    /// Debug tree with spans, e.g. `List [0..11]` / `├─ Symbol(+) [1..2]`.
+    /// Debug tree with spans, e.g. `[0..11] List` / `[1..2]  ├─ Symbol(+)`.
     pub fn debug_tree(&self) -> String {
         let mut out = String::new();
-        self.write_debug_tree(&mut out, "  ", true, true);
+        self.write_debug_tree(&mut out, "", true, true);
         out
     }
 
-    fn write_debug_tree(&self, out: &mut String, prefix: &str, is_last: bool, is_root: bool) {
+    fn write_debug_tree(&self, out: &mut String, gutter: &str, is_last: bool, is_root: bool) {
         let connector = if is_root {
             ""
         } else if is_last {
@@ -50,7 +50,12 @@ impl Expr {
             "├─ "
         };
 
-        let _ = writeln!(out, "{prefix}{connector}{:<12} {}", self.kind_label(), self.span);
+        let _ = writeln!(
+            out,
+            "  {:<10} {gutter}{connector}{}",
+            self.span.to_string(),
+            self.kind_label()
+        );
 
         let children: Vec<&Expr> = match &self.kind {
             ExprType::List(elems) => elems.iter().collect(),
@@ -58,17 +63,17 @@ impl Expr {
             _ => return,
         };
 
-        let child_prefix = if is_root {
-            format!("{prefix}  ")
+        let child_gutter = if is_root {
+            String::new()
         } else if is_last {
-            format!("{prefix}    ")
+            format!("{gutter}    ")
         } else {
-            format!("{prefix}│   ")
+            format!("{gutter}│   ")
         };
 
         let last = children.len().saturating_sub(1);
         for (i, child) in children.into_iter().enumerate() {
-            child.write_debug_tree(out, &child_prefix, i == last, false);
+            child.write_debug_tree(out, &child_gutter, i == last, false);
         }
     }
 }

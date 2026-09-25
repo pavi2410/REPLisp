@@ -110,7 +110,7 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Pad via String — custom Display ignores {:<width} unless it calls f.pad().
-        write!(f, "{:<12} {}", self.kind.to_string(), self.span)
+        write!(f, "{:<10} {}", self.span.to_string(), self.kind)
     }
 }
 
