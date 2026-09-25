@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use crate::tokenizer::{Token, TokenType, Span, LineIndex};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +20,54 @@ pub struct Expr {
 impl Expr {
     pub fn new(kind: ExprType, span: Span) -> Self {
         Self { kind, span }
+    }
+
+    fn kind_label(&self) -> String {
+        match &self.kind {
+            ExprType::Number(n) => format!("Number({n})"),
+            ExprType::String(s) => format!("String({s:?})"),
+            ExprType::Symbol(s) => format!("Symbol({s})"),
+            ExprType::List(_) => "List".to_string(),
+            ExprType::Quote(_) => "Quote".to_string(),
+        }
+    }
+
+    /// Debug tree with spans, e.g. `List [0..11]` / `├─ Symbol(+) [1..2]`.
+    pub fn debug_tree(&self) -> String {
+        let mut out = String::new();
+        self.write_debug_tree(&mut out, "  ", true, true);
+        out
+    }
+
+    fn write_debug_tree(&self, out: &mut String, prefix: &str, is_last: bool, is_root: bool) {
+        let connector = if is_root {
+            ""
+        } else if is_last {
+            "└─ "
+        } else {
+            "├─ "
+        };
+
+        let _ = writeln!(out, "{prefix}{connector}{:<12} {}", self.kind_label(), self.span);
+
+        let children: Vec<&Expr> = match &self.kind {
+            ExprType::List(elems) => elems.iter().collect(),
+            ExprType::Quote(inner) => vec![inner.as_ref()],
+            _ => return,
+        };
+
+        let child_prefix = if is_root {
+            format!("{prefix}  ")
+        } else if is_last {
+            format!("{prefix}    ")
+        } else {
+            format!("{prefix}│   ")
+        };
+
+        let last = children.len().saturating_sub(1);
+        for (i, child) in children.into_iter().enumerate() {
+            child.write_debug_tree(out, &child_prefix, i == last, false);
+        }
     }
 }
 

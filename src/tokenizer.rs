@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -42,6 +43,12 @@ impl Span {
     }
 }
 
+impl Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}..{}]", self.start, self.end)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LineIndex {
     starts: Vec<usize>,
@@ -74,6 +81,19 @@ pub enum TokenType {
     Quote,
 }
 
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenType::Number(n) => write!(f, "Number({n})"),
+            TokenType::String(s) => write!(f, "String({s:?})"),
+            TokenType::Symbol(s) => write!(f, "Symbol({s})"),
+            TokenType::LeftParen => write!(f, "\"(\""),
+            TokenType::RightParen => write!(f, "\")\""),
+            TokenType::Quote => write!(f, "Quote"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenType,
@@ -83,6 +103,13 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenType, span: Span) -> Self {
         Self { kind, span }
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Pad via String — custom Display ignores {:<width} unless it calls f.pad().
+        write!(f, "{:<12} {}", self.kind.to_string(), self.span)
     }
 }
 
@@ -316,7 +343,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     Ok(tokens)
 }
 
-impl std::fmt::Display for TokenizeError {
+impl Display for TokenizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenizeError::Unknown(ch, span) => {

@@ -84,21 +84,21 @@ fn eval_input(input: &str, env: &Rc<RefCell<Environment>>, debug: bool) {
     };
 
     if debug {
-        println!("Tokens ({} total):", tokens.len());
+        println!("Tokens ({}):", tokens.len());
         for (i, token) in tokens.iter().enumerate() {
-            println!("  {i}: {token:?}");
+            println!("  {i:<2} {token}");
         }
-        println!("---");
+        println!();
     }
 
     match parser::parse(tokens) {
         Ok(expressions) => {
             if debug {
-                println!("AST ({} expressions):", expressions.len());
-                for (i, expr) in expressions.iter().enumerate() {
-                    println!("  {i}: {expr:?}");
+                println!("AST ({} expr{}):", expressions.len(), if expressions.len() == 1 { "" } else { "s" });
+                for expr in &expressions {
+                    print!("{}", expr.debug_tree());
                 }
-                println!("---");
+                println!();
             }
 
             let mut env = env.borrow_mut();
