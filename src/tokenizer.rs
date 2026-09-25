@@ -1,3 +1,6 @@
+use std::iter::Peekable;
+use std::str::Chars;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Position {
     pub line: usize,
@@ -83,33 +86,37 @@ impl Token {
     }
 }
 
-pub struct Tokenizer {
-    input: Vec<char>,
+pub struct Tokenizer<'a> {
+    chars: Peekable<Chars<'a>>,
     position: usize,
 }
 
-impl Tokenizer {
-    pub fn new(input: &str) -> Self {
+impl<'a> Tokenizer<'a> {
+    pub fn new(input: &'a str) -> Self {
         Self {
-            input: input.chars().collect(),
+            chars: input.chars().peekable(),
             position: 0,
         }
     }
 
-    fn current_char(&self) -> Option<char> {
-        self.input.get(self.position).copied()
+    fn peek(&mut self) -> Option<char> {
+        self.chars.peek().copied()
     }
-    
-    fn advance(&mut self) {
+
+    fn peek_next(&self) -> Option<char> {
+        let mut iter = self.chars.clone();
+        iter.next();
+        iter.next()
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        let ch = self.chars.next()?;
         self.position += 1;
+        Some(ch)
     }
-    
-    fn peek(&self) -> Option<char> {
-        self.input.get(self.position + 1).copied()
-    }
-    
+
     fn skip_whitespace(&mut self) {
-        while self.current_char().is_some_and(char::is_whitespace) {
+        while self.peek().is_some_and(char::is_whitespace) {
             self.advance();
         }
     }
@@ -127,32 +134,32 @@ impl Tokenizer {
         self.advance();
         self.emit(kind, start)
     }
-    
+
     fn read_number(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
+        let mut number_str = String::new();
 
-        if self.current_char() == Some('-') {
-            self.advance();
+        if self.peek() == Some('-') {
+            number_str.push(self.advance().unwrap());
         }
 
         let mut seen_dot = false;
         let mut extra_dot = false;
 
-        while let Some(ch) = self.current_char() {
+        while let Some(ch) = self.peek() {
             if ch.is_ascii_digit() {
-                self.advance();
+                number_str.push(self.advance().unwrap());
             } else if ch == '.' {
                 if seen_dot {
                     extra_dot = true;
                 }
                 seen_dot = true;
-                self.advance();
+                number_str.push(self.advance().unwrap());
             } else {
                 break;
             }
         }
 
-        let number_str: String = self.input[start..self.position].iter().collect();
         let span = self.span_from(start);
         if extra_dot {
             return Err(TokenizeError::InvalidNumber(number_str, span));
@@ -163,100 +170,84 @@ impl Tokenizer {
             Err(_) => Err(TokenizeError::InvalidNumber(number_str, span)),
         }
     }
-    
+
     fn read_string(&mut self) -> Result<Token, TokenizeError> {
         let start = self.position;
         self.advance();
         let mut content = String::new();
 
         loop {
-            match self.current_char() {
+            match self.advance() {
                 None => return Err(TokenizeError::UnterminatedString(self.span_from(start))),
-                Some('"') => {
-                    self.advance();
-                    return Ok(self.emit(TokenType::String(content), start));
-                }
-                Some('\\') => {
-                    self.advance();
-                    match self.current_char() {
-                        None => return Err(TokenizeError::UnterminatedString(self.span_from(start))),
-                        Some(ch) => {
-                            content.push(match ch {
-                                'n' => '\n',
-                                't' => '\t',
-                                'r' => '\r',
-                                '"' => '"',
-                                '\\' => '\\',
-                                other => other,
-                            });
-                            self.advance();
-                        }
-                    }
-                }
-                Some(ch) => {
-                    content.push(ch);
-                    self.advance();
-                }
+                Some('"') => return Ok(self.emit(TokenType::String(content), start)),
+                Some('\\') => match self.advance() {
+                    None => return Err(TokenizeError::UnterminatedString(self.span_from(start))),
+                    Some(ch) => content.push(match ch {
+                        'n' => '\n',
+                        't' => '\t',
+                        'r' => '\r',
+                        '"' => '"',
+                        '\\' => '\\',
+                        other => other,
+                    }),
+                },
+                Some(ch) => content.push(ch),
             }
         }
     }
-    
+
     fn read_symbol(&mut self) -> Token {
         let start = self.position;
-        
-        while let Some(ch) = self.current_char() {
+        let mut symbol = String::new();
+
+        while let Some(ch) = self.peek() {
             if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) {
-                self.advance();
+                symbol.push(self.advance().unwrap());
             } else {
                 break;
             }
         }
-        
-        let symbol: String = self.input[start..self.position].iter().collect();
+
         self.emit(TokenType::Symbol(symbol), start)
     }
-    
+
     fn skip_comment(&mut self) {
         self.advance();
-        while let Some(ch) = self.current_char() {
+        while let Some(ch) = self.peek() {
             if ch == '\n' {
                 break;
             }
             self.advance();
         }
     }
-    
+
     pub fn next_token(&mut self) -> Result<Option<Token>, TokenizeError> {
         loop {
-            match self.current_char() {
+            match self.peek() {
                 None => return Ok(None),
-                
+
                 Some(ch) if ch.is_whitespace() => {
                     self.skip_whitespace();
                     continue;
                 }
-                
+
                 Some('(') => return Ok(Some(self.take(TokenType::LeftParen))),
                 Some(')') => return Ok(Some(self.take(TokenType::RightParen))),
                 Some('\'') => return Ok(Some(self.take(TokenType::Quote))),
-                
-                Some('"') => {
-                    return self.read_string().map(Some);
-                }
-                
+
+                Some('"') => return self.read_string().map(Some),
+
                 Some(';') => {
                     self.skip_comment();
                     continue;
                 }
-                
-                Some(ch) if ch.is_ascii_digit() => {
+
+                Some(ch) if ch.is_ascii_digit() => return self.read_number().map(Some),
+
+                Some('-') if self.peek_next().is_some_and(|p| p.is_ascii_digit()) => {
                     return self.read_number().map(Some);
                 }
-                
-                Some(ch) if ch == '-' && self.peek().is_some_and(|p| p.is_ascii_digit()) => {
-                    return self.read_number().map(Some);
-                }
-                
+
                 Some(ch) if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) => {
                     return Ok(Some(self.read_symbol()));
                 }
