@@ -1,4 +1,5 @@
-use std::fmt::Display;
+use std::error::Error;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -44,7 +45,7 @@ impl Span {
 }
 
 impl Display for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}..{}]", self.start, self.end)
     }
 }
@@ -82,7 +83,7 @@ pub enum TokenType {
 }
 
 impl Display for TokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenType::Number(n) => write!(f, "Number({n})"),
             TokenType::String(s) => write!(f, "String({s:?})"),
@@ -107,7 +108,7 @@ impl Token {
 }
 
 impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Pad via String — custom Display ignores {:<width} unless it calls f.pad().
         write!(f, "{:<12} {}", self.kind.to_string(), self.span)
     }
@@ -332,19 +333,24 @@ impl TokenizeError {
     }
 }
 
-pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
-    let mut tokenizer = Tokenizer::new(input);
-    let mut tokens = Vec::new();
-    
-    while let Some(token) = tokenizer.next_token()? {
-        tokens.push(token);
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Result<Token, TokenizeError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_token() {
+            Ok(Some(token)) => Some(Ok(token)),
+            Ok(None) => None,
+            Err(err) => Some(Err(err)),
+        }
     }
-    
-    Ok(tokens)
+}
+
+pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
+    Tokenizer::new(input).collect()
 }
 
 impl Display for TokenizeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             TokenizeError::Unknown(ch, span) => {
                 write!(f, "Unknown character at offset {}: {:?}", span.start, ch)
@@ -359,7 +365,7 @@ impl Display for TokenizeError {
     }
 }
 
-impl std::error::Error for TokenizeError {}
+impl Error for TokenizeError {}
 
 #[cfg(test)]
 mod tests {
