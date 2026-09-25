@@ -103,16 +103,27 @@ impl<'a> Tokenizer<'a> {
         self.chars.peek().copied()
     }
 
-    fn peek_next(&self) -> Option<char> {
-        let mut iter = self.chars.clone();
-        iter.next();
-        iter.next()
+    fn peek_at(&self, n: usize) -> Option<char> {
+        self.chars.clone().nth(n)
     }
 
     fn advance(&mut self) -> Option<char> {
         let ch = self.chars.next()?;
         self.position += 1;
         Some(ch)
+    }
+
+    fn starts_number(&self, ch: char) -> bool {
+        match ch {
+            c if c.is_ascii_digit() => true,
+            '.' => matches!(self.peek_at(1), Some(c) if c.is_ascii_digit() || c == '.'),
+            '-' => match self.peek_at(1) {
+                Some(c) if c.is_ascii_digit() => true,
+                Some('.') => matches!(self.peek_at(2), Some(c) if c.is_ascii_digit() || c == '.'),
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     fn skip_whitespace(&mut self) {
@@ -242,11 +253,7 @@ impl<'a> Tokenizer<'a> {
                     continue;
                 }
 
-                Some(ch) if ch.is_ascii_digit() => return self.read_number().map(Some),
-
-                Some('-') if self.peek_next().is_some_and(|p| p.is_ascii_digit()) => {
-                    return self.read_number().map(Some);
-                }
+                Some(ch) if self.starts_number(ch) => return self.read_number().map(Some),
 
                 Some(ch) if ch.is_alphanumeric() || "+-*/%=<>!?_-".contains(ch) => {
                     return Ok(Some(self.read_symbol()));
@@ -356,6 +363,56 @@ mod tests {
         assert_eq!(numbers("-2.5"), vec![-2.5]);
         assert_eq!(numbers("0"), vec![0.0]);
         assert_eq!(numbers("1.0"), vec![1.0]);
+        assert_eq!(numbers("5."), vec![5.0]);
+        assert_eq!(numbers("-5."), vec![-5.0]);
+    }
+
+    #[test]
+    fn parses_leading_dot_numbers() {
+        assert_eq!(numbers(".5"), vec![0.5]);
+        assert_eq!(numbers(".0"), vec![0.0]);
+        assert_eq!(numbers(".25"), vec![0.25]);
+        assert_eq!(numbers(".123"), vec![0.123]);
+        assert_eq!(numbers("-.5"), vec![-0.5]);
+        assert_eq!(numbers("-.0"), vec![-0.0]);
+        assert_eq!(numbers("-.25"), vec![-0.25]);
+        assert_eq!(numbers("-.123"), vec![-0.123]);
+    }
+
+    #[test]
+    fn leading_dot_numbers_in_lists() {
+        let tokens = tokenize("(+ .5 -.5 .25)").unwrap();
+        let kinds: Vec<_> = tokens.into_iter().map(|t| t.kind).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                TokenType::LeftParen,
+                TokenType::Symbol("+".into()),
+                TokenType::Number(0.5),
+                TokenType::Number(-0.5),
+                TokenType::Number(0.25),
+                TokenType::RightParen,
+            ]
+        );
+    }
+
+    #[test]
+    fn leading_dot_number_spans() {
+        assert_eq!(tokenize(".5").unwrap()[0].span, Span::new(0, 2));
+        assert_eq!(tokenize("-.5").unwrap()[0].span, Span::new(0, 3));
+        assert_eq!(tokenize("(.5)").unwrap()[1].span, Span::new(1, 3));
+    }
+
+    #[test]
+    fn bare_dot_is_unknown() {
+        match tokenize(".").unwrap_err() {
+            TokenizeError::Unknown('.', span) => assert_eq!(span, Span::new(0, 1)),
+            other => panic!("expected Unknown, got {other:?}"),
+        }
+        match tokenize("-.").unwrap_err() {
+            TokenizeError::Unknown('.', span) => assert_eq!(span, Span::new(1, 2)),
+            other => panic!("expected Unknown, got {other:?}"),
+        }
     }
 
     #[test]
@@ -364,6 +421,9 @@ mod tests {
         assert_eq!(invalid_number("-1.2.3"), "-1.2.3");
         assert_eq!(invalid_number("1..2"), "1..2");
         assert_eq!(invalid_number("1.2."), "1.2.");
+        assert_eq!(invalid_number(".1.2"), ".1.2");
+        assert_eq!(invalid_number("-.1.2"), "-.1.2");
+        assert_eq!(invalid_number("..1"), "..1");
     }
 
     #[test]
