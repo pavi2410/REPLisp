@@ -78,25 +78,23 @@ pub fn run_repl(mut debug: bool) {
 fn eval_input(input: &str, env: &Rc<RefCell<Environment>>, debug: bool) {
     if debug {
         println!("Input: {input}");
+
+        match tokenizer::tokenize(input) {
+            Ok(tokens) => {
+                println!("Tokens ({}):", tokens.len());
+                for (i, token) in tokens.iter().enumerate() {
+                    println!("  {i:<2} {token}");
+                }
+                println!();
+            }
+            Err(err) => {
+                eprintln!("Error tokenizing input: {}", err.display(input));
+                return;
+            }
+        }
     }
 
-    let tokens = match tokenizer::tokenize(input) {
-        Ok(tokens) => tokens,
-        Err(err) => {
-            eprintln!("Error tokenizing input: {}", err.display(input));
-            return;
-        }
-    };
-
-    if debug {
-        println!("Tokens ({}):", tokens.len());
-        for (i, token) in tokens.iter().enumerate() {
-            println!("  {i:<2} {token}");
-        }
-        println!();
-    }
-
-    match parser::parse(tokens) {
+    match parser::parse(input) {
         Ok(expressions) => {
             if debug {
                 println!("AST ({} expr{}):", expressions.len(), if expressions.len() == 1 { "" } else { "s" });

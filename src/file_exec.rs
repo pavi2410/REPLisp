@@ -15,25 +15,23 @@ pub fn execute_file(filename: &str, debug: bool) {
         println!("File content ({} chars):", content.len());
         println!("{}", content);
         println!("---");
-    }
-    
-    let tokens = match tokenizer::tokenize(&content) {
-        Ok(tokens) => tokens,
-        Err(err) => {
-            eprintln!("Error tokenizing file '{}': {}", filename, err.display(&content));
-            process::exit(1);
-        }
-    };
 
-    if debug {
-        println!("Tokens ({} total):", tokens.len());
-        for (i, token) in tokens.iter().enumerate() {
-            println!("  {}: {:?}", i, token);
+        match tokenizer::tokenize(&content) {
+            Ok(tokens) => {
+                println!("Tokens ({} total):", tokens.len());
+                for (i, token) in tokens.iter().enumerate() {
+                    println!("  {}: {:?}", i, token);
+                }
+                println!("---");
+            }
+            Err(err) => {
+                eprintln!("Error tokenizing file '{}': {}", filename, err.display(&content));
+                process::exit(1);
+            }
         }
-        println!("---");
     }
-    
-    let expressions = match parser::parse(tokens) {
+
+    let expressions = match parser::parse(&content) {
         Ok(expressions) => {
             if debug {
                 println!("AST ({} expressions):", expressions.len());

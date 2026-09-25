@@ -198,15 +198,12 @@ pub fn is_builtin(expr: &Expr) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenizer::tokenize;
-    use crate::parser::Parser;
+    use crate::parser::parse;
 
     #[test]
     fn test_extract_function_definitions() {
         let source = "(defn add (x y) (+ x y)) (defn square (x) (* x x))";
-        let tokens = tokenize(source).unwrap();
-        let mut parser = Parser::new(tokens);
-        let exprs = parser.parse().unwrap();
+        let exprs = parse(source).unwrap();
 
         let registry = extract_function_definitions(&exprs).unwrap();
 
@@ -224,31 +221,19 @@ mod tests {
 
     #[test]
     fn test_is_special_form() {
-        let tokens = tokenize("(if true 1 2)").unwrap();
-        let mut parser = Parser::new(tokens);
-        let exprs = parser.parse().unwrap();
-
+        let exprs = parse("(if true 1 2)").unwrap();
         assert_eq!(is_special_form(&exprs[0]), Some("if"));
 
-        let tokens = tokenize("(+ 1 2)").unwrap();
-        let mut parser = Parser::new(tokens);
-        let exprs = parser.parse().unwrap();
-
+        let exprs = parse("(+ 1 2)").unwrap();
         assert_eq!(is_special_form(&exprs[0]), None);
     }
 
     #[test]
     fn test_is_builtin() {
-        let tokens = tokenize("(+ 1 2)").unwrap();
-        let mut parser = Parser::new(tokens);
-        let exprs = parser.parse().unwrap();
-
+        let exprs = parse("(+ 1 2)").unwrap();
         assert_eq!(is_builtin(&exprs[0]), Some("+"));
 
-        let tokens = tokenize("(custom-fn 1 2)").unwrap();
-        let mut parser = Parser::new(tokens);
-        let exprs = parser.parse().unwrap();
-
+        let exprs = parse("(custom-fn 1 2)").unwrap();
         assert_eq!(is_builtin(&exprs[0]), None);
     }
 }

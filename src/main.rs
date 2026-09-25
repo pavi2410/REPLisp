@@ -85,21 +85,18 @@ fn compile_file(input: &str, output: Option<&str>, target: CompileTarget, debug:
         }
     };
 
-    // Tokenize
-    let tokens = match tokenizer::tokenize(&source) {
-        Ok(tokens) => tokens,
-        Err(err) => {
-            eprintln!("Tokenization error: {}", err.display(&source));
-            std::process::exit(1);
-        }
-    };
-
+    // Tokenize (debug dump only — parser streams tokens itself)
     if debug {
-        println!("Tokens: {:?}", tokens);
+        match tokenizer::tokenize(&source) {
+            Ok(tokens) => println!("Tokens: {:?}", tokens),
+            Err(err) => {
+                eprintln!("Tokenization error: {}", err.display(&source));
+                std::process::exit(1);
+            }
+        }
     }
 
-    // Parse
-    let exprs = match parser::parse(tokens) {
+    let exprs = match parser::parse(&source) {
         Ok(exprs) => exprs,
         Err(e) => {
             eprintln!("Parse error: {}", e.display(&source));
