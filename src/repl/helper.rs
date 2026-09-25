@@ -13,7 +13,7 @@ const SPECIALS: &[&str] = &[
     "cond", "def", "defn", "do", "else", "false", "if", "lambda", "quote", "true",
 ];
 
-const COMMANDS: &[&str] = &[":q", ":quit"];
+const COMMANDS: &[&str] = &[":d", ":debug", ":q", ":quit"];
 
 const SYMBOL_CHARS: &str = "+-*/%=<>!?_-:";
 

@@ -13,10 +13,10 @@ mod helper;
 
 use helper::ReplHelper;
 
-pub fn run_repl(debug: bool) {
+pub fn run_repl(mut debug: bool) {
     println!("Welcome to REPLisp!");
     println!("Type expressions to evaluate them.");
-    println!("Type :quit or Ctrl+D to exit.");
+    println!("Type :debug to toggle debug mode, :quit or Ctrl+D to exit.");
 
     let env = Rc::new(RefCell::new(Environment::new()));
     let config = Config::builder()
@@ -45,6 +45,11 @@ pub fn run_repl(debug: bool) {
             Ok(line) => {
                 let input = line.trim();
                 if input.is_empty() {
+                    continue;
+                }
+                if input == ":debug" || input == ":d" {
+                    debug = !debug;
+                    println!("debug {}", if debug { "on" } else { "off" });
                     continue;
                 }
                 if input == ":quit" || input == ":q" {
